@@ -18,6 +18,7 @@ export async function POST() {
       'Commercial_Agreement_v1.docx',
       'Commercial_Agreement_v2.docx',
       '150_Page_Enterprise_Master_Agreement.pdf',
+      'Arabic_Enterprise_Master_Agreement_15_Pages.docx',
       'Scanned_Contract_No_Text.pdf',
     ];
 
