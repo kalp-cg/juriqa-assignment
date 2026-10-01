@@ -18,6 +18,7 @@ export default function Home() {
   const [activeCitation, setActiveCitation] = useState<{
     quote: string;
     pageNumber?: number;
+    endPageNumber?: number;
     startOffset?: number;
     endOffset?: number;
   } | null>(null);
@@ -103,6 +104,7 @@ export default function Home() {
     setActiveCitation({
       quote: quote.matchedText || quote.quote,
       pageNumber: quote.pageNumber,
+      endPageNumber: quote.endPageNumber,
       startOffset: quote.startOffset,
       endOffset: quote.endOffset,
     });
@@ -114,6 +116,7 @@ export default function Home() {
     setActiveCitation({
       quote: quote.matchedText || quote.quote,
       pageNumber: quote.pageNumber,
+      endPageNumber: quote.endPageNumber,
       startOffset: quote.startOffset,
       endOffset: quote.endOffset,
     });

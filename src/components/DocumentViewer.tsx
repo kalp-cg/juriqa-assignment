@@ -28,6 +28,7 @@ interface DocumentViewerProps {
   activeCitation?: {
     quote: string;
     pageNumber?: number;
+    endPageNumber?: number;
     startOffset?: number;
     endOffset?: number;
   } | null;
@@ -235,15 +236,37 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 
       {/* Active Citation Notification Banner */}
       {activeCitation && (
-        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center justify-between text-xs text-amber-900">
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center justify-between text-xs text-amber-900 gap-2">
           <div className="flex items-center space-x-2 truncate">
             <span className="font-semibold shrink-0">Active Citation:</span>
             <span className="truncate italic font-serif">"{activeCitation.quote}"</span>
-            {activeCitation.pageNumber && (
-              <span className="px-1.5 py-0.5 rounded bg-amber-200 text-amber-900 font-mono text-[10px] shrink-0">
+            {activeCitation.endPageNumber && activeCitation.endPageNumber > (activeCitation.pageNumber || 1) ? (
+              <span className="inline-flex items-center space-x-1.5 shrink-0">
+                <span className="px-1.5 py-0.5 rounded bg-amber-200 text-amber-900 font-mono text-[10px] font-semibold">
+                  Spans Pages {activeCitation.pageNumber} – {activeCitation.endPageNumber}
+                </span>
+                {currentPage !== activeCitation.pageNumber && (
+                  <button
+                    onClick={() => setCurrentPage(activeCitation.pageNumber!)}
+                    className="px-2 py-0.5 rounded bg-amber-200 hover:bg-amber-300 text-amber-950 font-sans text-[10px] font-medium border border-amber-300"
+                  >
+                    Go to Page {activeCitation.pageNumber}
+                  </button>
+                )}
+                {currentPage !== activeCitation.endPageNumber && (
+                  <button
+                    onClick={() => setCurrentPage(activeCitation.endPageNumber!)}
+                    className="px-2 py-0.5 rounded bg-amber-200 hover:bg-amber-300 text-amber-950 font-sans text-[10px] font-medium border border-amber-300"
+                  >
+                    Go to Page {activeCitation.endPageNumber}
+                  </button>
+                )}
+              </span>
+            ) : activeCitation.pageNumber ? (
+              <span className="px-1.5 py-0.5 rounded bg-amber-200 text-amber-900 font-mono text-[10px] shrink-0 font-semibold">
                 Page {activeCitation.pageNumber}
               </span>
-            )}
+            ) : null}
           </div>
           {onClearCitation && (
             <button

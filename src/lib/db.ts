@@ -68,11 +68,22 @@ class DatabaseManager {
     }
 
     // Local SQLite with WAL mode & busy timeout
-    const dataDir = path.join(process.cwd(), 'data');
+    const isServerless = !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT);
+    const dataDir = isServerless ? '/tmp' : path.join(process.cwd(), 'data');
     if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
+      try { fs.mkdirSync(dataDir, { recursive: true }); } catch {}
     }
     const dbPath = path.join(dataDir, 'contracts.db');
+
+    // On serverless cold starts, copy pre-seeded DB from source directory if available
+    if (isServerless && !fs.existsSync(dbPath)) {
+      const sourceDb = path.join(process.cwd(), 'data', 'contracts.db');
+      if (fs.existsSync(sourceDb)) {
+        try { fs.copyFileSync(sourceDb, dbPath); } catch (e) {
+          console.warn('Could not copy initial seed DB to /tmp:', e);
+        }
+      }
+    }
 
     try {
       const { DatabaseSync } = require('node:sqlite');
