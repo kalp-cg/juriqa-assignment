@@ -11,6 +11,9 @@ import {
   FileText,
   Loader2,
   ArrowRight,
+  ChevronDown,
+  ChevronUp,
+  Activity,
 } from 'lucide-react';
 import { DocumentSummary } from './DocumentLibrary';
 import { VerifiedQuote } from '@/lib/quoteVerifier';
@@ -19,6 +22,51 @@ interface MultiDocumentChatProps {
   documents: DocumentSummary[];
   onOpenDocWithQuote: (docId: string, quote: VerifiedQuote) => void;
 }
+
+/**
+ * Animated 3-Layer Icon representing dynamic cross-document synthesis.
+ * When request is in flight and answers form, each layer animates in an accordion cascade.
+ */
+const AnimatedLayersIcon: React.FC<{ isSynthesizing: boolean }> = ({ isSynthesizing }) => {
+  return (
+    <div
+      className={`relative w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 ${
+        isSynthesizing
+          ? 'bg-slate-900 text-white shadow-md animate-layer-box ring-2 ring-slate-800/30'
+          : 'bg-slate-100 text-slate-700 border border-slate-200'
+      }`}
+      title={isSynthesizing ? 'Actively cross-analyzing documents' : 'Cross-Document Synthesis'}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width="18"
+        height="18"
+        stroke="currentColor"
+        strokeWidth="2"
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="overflow-visible"
+      >
+        {/* Top Layer Sheet */}
+        <polygon
+          points="12 2 2 7 12 12 22 7 12 2"
+          className={isSynthesizing ? 'animate-layer-top stroke-white' : 'stroke-current'}
+        />
+        {/* Middle Layer Sheet */}
+        <polyline
+          points="2 12 12 17 22 12"
+          className={isSynthesizing ? 'animate-layer-mid stroke-slate-300' : 'stroke-current opacity-80'}
+        />
+        {/* Bottom Layer Sheet */}
+        <polyline
+          points="2 17 12 22 22 17"
+          className={isSynthesizing ? 'animate-layer-bottom stroke-slate-400' : 'stroke-current opacity-60'}
+        />
+      </svg>
+    </div>
+  );
+};
 
 export const MultiDocumentChat: React.FC<MultiDocumentChatProps> = ({
   documents,
@@ -33,6 +81,7 @@ export const MultiDocumentChat: React.FC<MultiDocumentChatProps> = ({
   const [answer, setAnswer] = useState<string>('');
   const [quotes, setQuotes] = useState<VerifiedQuote[]>([]);
   const [activeSteps, setActiveSteps] = useState<any[]>([]);
+  const [showSteps, setShowSteps] = useState<boolean>(false);
 
   const toggleDocSelection = (id: string) => {
     setSelectedDocIds(prev =>
@@ -212,22 +261,96 @@ export const MultiDocumentChat: React.FC<MultiDocumentChatProps> = ({
 
       {/* Synthesis Results & Attributed Quotes */}
       {(answer || isSynthesizing) && (
-        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-2xs space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div className="flex items-center space-x-2">
-              <Layers className="w-4 h-4 text-slate-700" />
-              <h3 className="text-sm font-semibold text-slate-900">Comparative Cross-Document Synthesis</h3>
+        <div className="relative bg-white border border-slate-200 rounded-xl p-6 shadow-2xs space-y-6 overflow-hidden">
+          {/* Top animated indeterminate shimmer bar during synthesis */}
+          {isSynthesizing && (
+            <div className="h-1 w-full bg-slate-100 overflow-hidden rounded-t-xl absolute top-0 left-0">
+              <div className="h-full bg-slate-900 animate-shimmer-bar w-1/3 rounded-full" />
             </div>
-            {isSynthesizing && (
-              <span className="text-[11px] font-mono text-slate-500 animate-pulse">
-                Consulting documents in real time...
-              </span>
-            )}
+          )}
+
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div className="flex items-center space-x-3">
+              <AnimatedLayersIcon isSynthesizing={isSynthesizing} />
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                  <span>Comparative Cross-Document Synthesis</span>
+                  {isSynthesizing && (
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-800 border border-slate-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-800 animate-ping" />
+                      Live Analysis
+                    </span>
+                  )}
+                </h3>
+                <p className="text-[11px] text-slate-500 font-mono mt-0.5">
+                  {isSynthesizing
+                    ? activeSteps.length > 0
+                      ? activeSteps[activeSteps.length - 1].message
+                      : `Evaluating ${selectedDocIds.length} selected contracts in parallel...`
+                    : `Evaluated ${selectedDocIds.length} contracts • ${quotes.filter(q => q.verified).length} of ${quotes.length} citations verified`}
+                </p>
+              </div>
+            </div>
+
+            {/* Steps & Status summary */}
+            <div className="flex items-center gap-2">
+              {activeSteps.length > 0 && (
+                <button
+                  onClick={() => setShowSteps(!showSteps)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-md transition-colors"
+                >
+                  <Activity className="w-3 h-3 text-slate-600" />
+                  <span>Research Trail ({activeSteps.length})</span>
+                  {showSteps ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Answer text */}
+          {/* Collapsible Research Trail Steps */}
+          {showSteps && activeSteps.length > 0 && (
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2 max-h-60 overflow-y-auto">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                Real-Time Document Inspection Trail
+              </div>
+              <div className="space-y-1.5 font-mono text-[11px]">
+                {activeSteps.map((step, idx) => (
+                  <div key={idx} className="flex items-start gap-2 text-slate-700 bg-white p-2 rounded border border-slate-100">
+                    <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[10px] font-bold text-slate-600 shrink-0">
+                      #{step.stepNumber || idx + 1}
+                    </span>
+                    <span className="font-semibold text-slate-900 shrink-0">{step.tool}:</span>
+                    <span className="text-slate-600 truncate flex-1">{step.message || JSON.stringify(step.input)}</span>
+                    {step.timestamp && <span className="text-[10px] text-slate-400 shrink-0">{step.timestamp}</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Answer text area */}
           <div className="prose prose-slate max-w-none text-xs leading-relaxed whitespace-pre-wrap text-slate-800">
-            {answer || 'Beginning analysis across chosen contracts...'}
+            {isSynthesizing && !answer ? (
+              <div className="space-y-3 py-2">
+                <div className="flex items-center space-x-2 text-xs font-mono text-slate-600">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-900" />
+                  <span>Cross-referencing clauses and synthesizing comparative overview across {selectedDocIds.length} documents...</span>
+                </div>
+                <div className="space-y-2 max-w-md pt-1">
+                  <div className="h-2.5 bg-slate-100 rounded-full animate-pulse w-full" />
+                  <div className="h-2.5 bg-slate-100 rounded-full animate-pulse w-5/6" />
+                  <div className="h-2.5 bg-slate-100 rounded-full animate-pulse w-3/5" />
+                </div>
+              </div>
+            ) : (
+              <>
+                {answer}
+                {isSynthesizing && (
+                  <span className="inline-block w-1.5 h-3.5 bg-slate-900 ml-1 animate-pulse align-middle" />
+                )}
+              </>
+            )}
           </div>
 
           {/* Attributed Quotes List */}
