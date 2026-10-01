@@ -405,9 +405,30 @@ export async function runAgenticDocumentResearch(
   };
 
   const toolSearchDocument = (searchQuery: string, docId?: string) => {
-    const keywords = extractKeywords(searchQuery);
+    const rawKeywords = extractKeywords(searchQuery);
     const targetDocs = docId ? parsedDocs.filter(d => d.id === docId) : parsedDocs;
     const matches: { document: string; page: number; clause?: string; excerpt: string; fullClause?: string; score: number }[] = [];
+
+    // Alias expansion for bilingual/transliterated terms (e.g. Cupid <-> õâwr...z)
+    const expandedKeywords = [...rawKeywords];
+    for (const d of targetDocs) {
+      for (const page of d.pages) {
+        for (const kw of rawKeywords) {
+          try {
+            const rx = new RegExp(`(\\S+)\\s*\\(\\s*${kw}\\s*\\)|\\(\\s*${kw}\\s*\\)\\s*(\\S+)`, 'i');
+            const m = page.text.match(rx);
+            if (m) {
+              const alias = m[1] || m[2];
+              if (alias && alias.length > 2 && !expandedKeywords.includes(alias)) {
+                expandedKeywords.push(alias);
+              }
+            }
+          } catch {}
+        }
+      }
+    }
+
+    const seenPages = new Set<string>();
 
     for (const d of targetDocs) {
       // 1. Search clauses
@@ -415,16 +436,20 @@ export async function runAgenticDocumentResearch(
         const textLow = clause.text.toLowerCase();
         const titleLow = clause.title.toLowerCase();
         let score = 0;
-        for (const w of keywords) {
-          if (titleLow.includes(w)) score += 3;
-          if (textLow.includes(w)) score += 1;
+        for (const w of expandedKeywords) {
+          const wLow = w.toLowerCase();
+          if (titleLow.includes(wLow)) score += 3;
+          if (textLow.includes(wLow)) score += 1;
         }
         if (score > 0) {
           inspectedClauses.add(clause.title);
           inspectedPages.add(clause.pageNumber);
-          const matchIdx = textLow.indexOf(keywords[0]) !== -1 ? textLow.indexOf(keywords[0]) : 0;
+          seenPages.add(`${d.filename}:${clause.pageNumber}`);
+          const matchIdx = textLow.indexOf(expandedKeywords[0].toLowerCase()) !== -1
+            ? textLow.indexOf(expandedKeywords[0].toLowerCase())
+            : 0;
           const start = Math.max(0, matchIdx - 50);
-          const end = Math.min(clause.text.length, matchIdx + 250);
+          const end = Math.min(clause.text.length, matchIdx + 280);
           matches.push({
             document: d.filename,
             page: clause.pageNumber,
@@ -436,32 +461,40 @@ export async function runAgenticDocumentResearch(
         }
       }
 
-      // 2. Also search page text directly if clauses didn't match
-      if (matches.length === 0) {
-        for (const page of d.pages) {
-          const textLow = page.text.toLowerCase();
-          let score = 0;
-          for (const w of keywords) {
-            if (textLow.includes(w)) score += 1;
+      // 2. Search all pages directly for complete document coverage
+      for (const page of d.pages) {
+        const textLow = page.text.toLowerCase();
+        let score = 0;
+        for (const w of expandedKeywords) {
+          const wLow = w.toLowerCase();
+          if (textLow.includes(wLow)) score += 2;
+        }
+        if (score > 0 && !seenPages.has(`${d.filename}:${page.pageNumber}`)) {
+          inspectedPages.add(page.pageNumber);
+          seenPages.add(`${d.filename}:${page.pageNumber}`);
+          let matchIdx = -1;
+          for (const w of expandedKeywords) {
+            const idx = textLow.indexOf(w.toLowerCase());
+            if (idx !== -1) {
+              matchIdx = idx;
+              break;
+            }
           }
-          if (score > 0) {
-            inspectedPages.add(page.pageNumber);
-            const matchIdx = textLow.indexOf(keywords[0]) !== -1 ? textLow.indexOf(keywords[0]) : 0;
-            const start = Math.max(0, matchIdx - 50);
-            const end = Math.min(page.text.length, matchIdx + 250);
-            matches.push({
-              document: d.filename,
-              page: page.pageNumber,
-              excerpt: page.text.substring(start, end).trim(),
-              fullClause: page.text,
-              score,
-            });
-          }
+          if (matchIdx === -1) matchIdx = 0;
+          const start = Math.max(0, matchIdx - 50);
+          const end = Math.min(page.text.length, matchIdx + 300);
+          matches.push({
+            document: d.filename,
+            page: page.pageNumber,
+            excerpt: page.text.substring(start, end).trim(),
+            fullClause: page.text,
+            score,
+          });
         }
       }
     }
 
-    return matches.sort((a, b) => b.score - a.score).slice(0, 5);
+    return matches.sort((a, b) => b.score - a.score).slice(0, 8);
   };
 
   const toolGetSection = (sectionIdentifier: string, docId?: string) => {
