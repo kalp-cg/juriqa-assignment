@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "npx tsx scripts/test_verifier.ts && npx esbuild scripts/test_pipeline.ts --bundle --platform=node --external:pdf-parse --external:mammoth | node"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

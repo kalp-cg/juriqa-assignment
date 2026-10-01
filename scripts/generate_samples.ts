@@ -11,8 +11,8 @@ async function generateSamples() {
 
   // 1. Searchable Legal Contract PDF (SaaS & Services Agreement)
   const pdfDoc = await PDFDocument.create();
-  const timesRoman = await pdfDoc.embedFont(StandardFonts.TimesRoman);
-  const timesRomanBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
+  const timesRoman = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const timesRomanBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
   // Page 1
   let page1 = pdfDoc.addPage([595, 842]);
@@ -97,7 +97,7 @@ async function generateSamples() {
     yPos -= isHeading ? 22 : 16;
   }
 
-  const pdfBytes = await pdfDoc.save({ useObjectStreams: false });
+  const pdfBytes = await pdfDoc.save();
   const pdfPath = path.join(samplesDir, 'Enterprise_SaaS_Agreement.pdf');
   fs.writeFileSync(pdfPath, pdfBytes);
   console.log('Created searchable PDF:', pdfPath);
@@ -114,7 +114,7 @@ async function generateSamples() {
     borderColor: rgb(0.8, 0.8, 0.8),
     color: rgb(0.96, 0.96, 0.96),
   });
-  const scannedBytes = await scannedPdfDoc.save({ useObjectStreams: false });
+  const scannedBytes = await scannedPdfDoc.save();
   const scannedPdfPath = path.join(samplesDir, 'Scanned_Contract_No_Text.pdf');
   fs.writeFileSync(scannedPdfPath, scannedBytes);
   console.log('Created scanned PDF (zero-text test):', scannedPdfPath);
@@ -210,7 +210,7 @@ async function generateSamples() {
     });
   }
 
-  const largeBytes = await largeDoc.save({ useObjectStreams: false });
+  const largeBytes = await largeDoc.save();
   const largePath = path.join(samplesDir, '150_Page_Enterprise_Master_Agreement.pdf');
   fs.writeFileSync(largePath, largeBytes);
   console.log('Created 150-Page Contract PDF:', largePath);

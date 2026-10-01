@@ -115,7 +115,11 @@ export async function processPdf(
   let pageIndex = 1;
 
   const pagerender = (pageData: any) => {
-    return pageData.getTextContent().then((textContent: any) => {
+    const render_options = {
+      normalizeWhitespace: false,
+      disableCombineTextItems: false,
+    };
+    return pageData.getTextContent(render_options).then((textContent: any) => {
       let pageText = '';
       let lastY: number | null = null;
 
@@ -138,7 +142,27 @@ export async function processPdf(
     });
   };
 
-  const parsed = await pdfParse(buffer, { pagerender });
+  let parsed: any;
+  try {
+    parsed = await pdfParse(buffer, { pagerender });
+  } catch (err: any) {
+    try {
+      pages.length = 0;
+      parsed = await pdfParse(buffer);
+      const rawText = parsed.text || '';
+      const splitPages = rawText.split(/\f/g);
+      splitPages.forEach((pText: string, i: number) => {
+        if (pText.trim()) {
+          pages.push({ pageNumber: i + 1, text: pText.trim() });
+        }
+      });
+      if (pages.length === 0 && rawText.trim()) {
+        pages.push({ pageNumber: 1, text: rawText.trim() });
+      }
+    } catch (innerErr: any) {
+      throw new Error(`Failed to parse PDF document: ${err.message || innerErr.message}`);
+    }
+  }
   const rawText = parsed.text || '';
   const totalPages = pages.length > 0 ? pages.length : parsed.numpages || 1;
 
