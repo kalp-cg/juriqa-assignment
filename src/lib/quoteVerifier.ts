@@ -79,7 +79,7 @@ export function buildDocumentTokens(pages: DocumentPage[]): {
     const token = match[0];
     const normalizedToken = token
       .toLowerCase()
-      .replace(/[^\w\d]/g, ''); // alphanumeric only for fuzzy matching
+      .replace(/[^\p{L}\p{N}]/gu, ''); // Unicode alphanumeric for multilingual matching
 
     // Determine page number
     let pageNum = 1;
@@ -135,8 +135,8 @@ export function verifyQuoteAgainstDocument(
   if (directIdx !== -1) {
     // Locate token boundaries that correspond to this quote
     const quoteWords = cleanQuote.split(/\s+/).filter(Boolean);
-    const firstWordNorm = quoteWords[0].toLowerCase().replace(/[^\w\d]/g, '');
-    const lastWordNorm = quoteWords[quoteWords.length - 1].toLowerCase().replace(/[^\w\d]/g, '');
+    const firstWordNorm = quoteWords[0].toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+    const lastWordNorm = quoteWords[quoteWords.length - 1].toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
 
     for (let i = 0; i < tokens.length; i++) {
       if (tokens[i].normalizedToken === firstWordNorm) {
@@ -171,7 +171,7 @@ export function verifyQuoteAgainstDocument(
   // 2. Sliding Window Token-Sequence Matching (Tolerates line breaks, hyphens, and whitespace)
   const quoteTokens = cleanQuote
     .split(/\s+/)
-    .map(t => t.toLowerCase().replace(/[^\w\d]/g, ''))
+    .map(t => t.toLowerCase().replace(/[^\p{L}\p{N}]/gu, ''))
     .filter(t => t.length > 0);
 
   if (quoteTokens.length === 0) {

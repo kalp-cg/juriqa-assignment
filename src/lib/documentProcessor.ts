@@ -142,13 +142,13 @@ export async function processPdf(
   const rawText = parsed.text || '';
   const totalPages = pages.length > 0 ? pages.length : parsed.numpages || 1;
 
-  // --- Scanned PDF Detection (Requirement 1) ---
-  const alphanumericCount = (rawText.match(/[a-zA-Z0-9]/g) || []).length;
-  const avgCharsPerPage = totalPages > 0 ? alphanumericCount / totalPages : 0;
+  // --- Scanned PDF Detection (Multilingual & Unicode Aware) ---
+  const readableCount = (rawText.match(/[\p{L}\p{N}]/gu) || []).length;
+  const avgCharsPerPage = totalPages > 0 ? readableCount / totalPages : 0;
 
-  if (alphanumericCount < 25 || avgCharsPerPage < 8) {
+  if (readableCount < 25 || avgCharsPerPage < 8) {
     throw new Error(
-      `This PDF appears to be a scanned document containing no selectable or readable text (${alphanumericCount} readable characters detected across ${totalPages} pages). Please provide a searchable PDF with text or a DOCX contract.`
+      `This PDF appears to be a scanned document containing no selectable or readable text (${readableCount} readable characters detected across ${totalPages} pages). Please provide a searchable PDF with text or a DOCX contract.`
     );
   }
 
@@ -176,10 +176,10 @@ export async function processDocx(
   const result = await mammoth.extractRawText({ buffer });
   const rawText = result.value || '';
 
-  const alphanumericCount = (rawText.match(/[a-zA-Z0-9]/g) || []).length;
-  if (alphanumericCount < 25) {
+  const readableCount = (rawText.match(/[\p{L}\p{N}]/gu) || []).length;
+  if (readableCount < 25) {
     throw new Error(
-      `The Word document "${filename}" contains no readable text. Please check the document content.`
+      `The Word document "${filename}" contains no readable text (${readableCount} characters detected). Please check the document content.`
     );
   }
 

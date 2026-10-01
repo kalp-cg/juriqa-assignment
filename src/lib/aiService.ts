@@ -56,9 +56,9 @@ function normalizeQuery(q: string): string {
 function extractKeywords(query: string): string[] {
   const norm = normalizeQuery(query);
   return norm
-    .replace(/[^\w\s]/g, ' ')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
     .split(/\s+/)
-    .filter(w => w.length > 2 && !STOP_WORDS.has(w));
+    .filter(w => w.length > 1 && !STOP_WORDS.has(w));
 }
 
 /**
