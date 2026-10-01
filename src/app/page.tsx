@@ -1,101 +1,274 @@
-import Image from "next/image";
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { Navbar } from '@/components/Navbar';
+import { DocumentLibrary, DocumentSummary } from '@/components/DocumentLibrary';
+import { DocumentViewer } from '@/components/DocumentViewer';
+import { ChatInterface } from '@/components/ChatInterface';
+import { MultiDocumentChat } from '@/components/MultiDocumentChat';
+import { DocumentComparison } from '@/components/DocumentComparison';
+import { VerifiedQuote } from '@/lib/quoteVerifier';
+import { AlertCircle, CheckCircle, ShieldCheck } from 'lucide-react';
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [activeTab, setActiveTab] = useState<'library' | 'chat' | 'multi' | 'compare'>('library');
+  const [documents, setDocuments] = useState<DocumentSummary[]>([]);
+  const [activeDocId, setActiveDocId] = useState<string | null>(null);
+  const [activeDocData, setActiveDocData] = useState<any | null>(null);
+  const [activeCitation, setActiveCitation] = useState<{
+    quote: string;
+    pageNumber?: number;
+    startOffset?: number;
+    endOffset?: number;
+  } | null>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  const [compareDocA, setCompareDocA] = useState<string | undefined>();
+  const [compareDocB, setCompareDocB] = useState<string | undefined>();
+  const [isSeeding, setIsSeeding] = useState<boolean>(false);
+  const [notification, setNotification] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  // Load document list
+  const fetchDocuments = async () => {
+    try {
+      const res = await fetch('/api/documents');
+      const data = await res.json();
+      if (data.success && data.documents) {
+        setDocuments(data.documents);
+        // Default to first ready document if none selected
+        if (!activeDocId && data.documents.length > 0) {
+          const ready = data.documents.find((d: any) => d.status === 'ready');
+          if (ready) {
+            setActiveDocId(ready.id);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load documents:', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchDocuments();
+  }, []);
+
+  // Fetch full details for the active document (pages, clauses, raw text)
+  useEffect(() => {
+    if (!activeDocId) {
+      setActiveDocData(null);
+      return;
+    }
+
+    const fetchDocDetails = async () => {
+      try {
+        const res = await fetch(`/api/documents/${activeDocId}`);
+        const data = await res.json();
+        if (data.success && data.document) {
+          setActiveDocData(data.document);
+        }
+      } catch (err) {
+        console.error('Failed to load active document details:', err);
+      }
+    };
+
+    fetchDocDetails();
+  }, [activeDocId]);
+
+  const handleOpenDocument = (docId: string) => {
+    setActiveDocId(docId);
+    setActiveCitation(null);
+    setActiveTab('chat');
+  };
+
+  const handleDeleteDocument = async (docId: string) => {
+    try {
+      await fetch(`/api/documents/${docId}`, { method: 'DELETE' });
+      setNotification({ text: 'Contract deleted from repository.', type: 'success' });
+      fetchDocuments();
+      if (activeDocId === docId) {
+        setActiveDocId(null);
+        setActiveDocData(null);
+      }
+    } catch (e) {
+      setNotification({ text: 'Failed to delete contract.', type: 'error' });
+    }
+  };
+
+  const handleCompareWith = (docAId: string, docBId?: string) => {
+    setCompareDocA(docAId);
+    setCompareDocB(docBId);
+    setActiveTab('compare');
+  };
+
+  const handleSelectCitation = (quote: VerifiedQuote) => {
+    setActiveCitation({
+      quote: quote.matchedText || quote.quote,
+      pageNumber: quote.pageNumber,
+      startOffset: quote.startOffset,
+      endOffset: quote.endOffset,
+    });
+    setActiveTab('chat');
+  };
+
+  const handleOpenDocWithQuote = (docId: string, quote: VerifiedQuote) => {
+    setActiveDocId(docId);
+    setActiveCitation({
+      quote: quote.matchedText || quote.quote,
+      pageNumber: quote.pageNumber,
+      startOffset: quote.startOffset,
+      endOffset: quote.endOffset,
+    });
+    setActiveTab('chat');
+  };
+
+  const handleSeedSamples = async () => {
+    try {
+      setIsSeeding(true);
+      const res = await fetch('/api/seed', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setNotification({
+          text: 'Loaded sample contracts: Searchable SaaS PDF, DOCX v1 & v2, and Scanned test PDF.',
+          type: 'success',
+        });
+        await fetchDocuments();
+      }
+    } catch (err) {
+      setNotification({ text: 'Error seeding samples.', type: 'error' });
+    } finally {
+      setIsSeeding(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans">
+      {/* Executive Navbar */}
+      <Navbar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        documentCount={documents.length}
+        onSeedSamples={handleSeedSamples}
+        isSeeding={isSeeding}
+      />
+
+      {/* Global Notification Toast */}
+      {notification && (
+        <div className="max-w-xl mx-auto mt-3 px-4 w-full z-50">
+          <div
+            className={`p-3 rounded-lg border text-xs flex items-center justify-between shadow-sm ${
+              notification.type === 'success'
+                ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                : 'bg-rose-50 border-rose-300 text-rose-900'
+            }`}
           >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            <div className="flex items-center space-x-2">
+              {notification.type === 'success' ? (
+                <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+              ) : (
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              )}
+              <span>{notification.text}</span>
+            </div>
+            <button
+              onClick={() => setNotification(null)}
+              className="text-slate-400 hover:text-slate-700 font-bold ml-2"
+            >
+              ✕
+            </button>
+          </div>
         </div>
+      )}
+
+      {/* Main Workspace Views */}
+      <main className="flex-1 flex flex-col">
+        {/* VIEW 1: Document Library */}
+        {activeTab === 'library' && (
+          <DocumentLibrary
+            documents={documents}
+            onOpenDocument={handleOpenDocument}
+            onDeleteDocument={handleDeleteDocument}
+            onRefresh={fetchDocuments}
+            onCompareWith={handleCompareWith}
+          />
+        )}
+
+        {/* VIEW 2: Split Screen Analysis & Chat (Document Viewer + Verified Streaming Chat) */}
+        {activeTab === 'chat' && (
+          <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-4 flex flex-col">
+            {/* Top Bar for Switch Document */}
+            <div className="flex items-center justify-between mb-3 bg-white px-4 py-2 rounded-lg border border-slate-200">
+              <div className="flex items-center space-x-2">
+                <span className="text-xs font-semibold text-slate-700">Active Document:</span>
+                <select
+                  value={activeDocId || ''}
+                  onChange={e => {
+                    setActiveDocId(e.target.value);
+                    setActiveCitation(null);
+                  }}
+                  className="text-xs bg-slate-50 border border-slate-200 rounded px-2.5 py-1 text-slate-800 font-medium focus:outline-hidden"
+                >
+                  {documents
+                    .filter(d => d.status === 'ready')
+                    .map(d => (
+                      <option key={d.id} value={d.id}>
+                        {d.filename} ({d.filetype.toUpperCase()})
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              {activeDocData && (
+                <div className="text-[11px] text-slate-500 font-mono hidden sm:block">
+                  {activeDocData.total_pages} {activeDocData.total_pages === 1 ? 'Page' : 'Pages'} • {activeDocData.total_words?.toLocaleString()} Words • {activeDocData.clauses?.length || 0} Clauses
+                </div>
+              )}
+            </div>
+
+            {/* Split Grid */}
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-[640px] pb-6">
+              {/* Left Column: Interactive Document Viewer (7 cols) */}
+              <div className="lg:col-span-7 h-[680px]">
+                <DocumentViewer
+                  document={activeDocData}
+                  activeCitation={activeCitation}
+                  onClearCitation={() => setActiveCitation(null)}
+                />
+              </div>
+
+              {/* Right Column: Streaming Chat Interface (5 cols) */}
+              <div className="lg:col-span-5 h-[680px]">
+                {activeDocId ? (
+                  <ChatInterface
+                    documentId={activeDocId}
+                    documentTitle={activeDocData?.filename || 'Document'}
+                    onSelectCitation={handleSelectCitation}
+                  />
+                ) : (
+                  <div className="h-full flex items-center justify-center p-8 bg-white border border-slate-200 rounded-xl text-center text-xs text-slate-500">
+                    Please select a ready contract from the dropdown to start chatting.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* VIEW 3: Multi-Document Analysis */}
+        {activeTab === 'multi' && (
+          <MultiDocumentChat
+            documents={documents}
+            onOpenDocWithQuote={handleOpenDocWithQuote}
+          />
+        )}
+
+        {/* VIEW 4: Contract Version Comparison */}
+        {activeTab === 'compare' && (
+          <DocumentComparison
+            documents={documents}
+            preselectedDocA={compareDocA}
+            preselectedDocB={compareDocB}
+          />
+        )}
       </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }

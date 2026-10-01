@@ -1,0 +1,381 @@
+import fs from 'fs';
+import path from 'path';
+
+export interface DocumentRecord {
+  id: string;
+  filename: string;
+  filetype: 'pdf' | 'docx';
+  filesize: number;
+  total_pages: number;
+  total_words: number;
+  raw_text: string;
+  pages_json: string;
+  clauses_json: string;
+  created_at: string;
+  status: 'processing' | 'ready' | 'error';
+  error_message?: string | null;
+}
+
+export interface MessageRecord {
+  id: string;
+  chat_id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  quotes_json: string;
+  coverage_json: string;
+  agent_steps_json: string;
+  created_at: string;
+}
+
+export interface ChatRecord {
+  id: string;
+  document_id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ComparisonRecord {
+  id: string;
+  doc_a_id: string;
+  doc_b_id: string;
+  summary: string;
+  diffs_json: string;
+  created_at: string;
+}
+
+class DatabaseManager {
+  private db: any = null;
+  private isPostgres = false;
+  private pgPool: any = null;
+  private initialized = false;
+
+  private ensureInit() {
+    if (this.initialized) return;
+
+    const dbUrl = process.env.DATABASE_URL;
+    if (dbUrl && (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://'))) {
+      try {
+        const { Pool } = require('pg');
+        this.pgPool = new Pool({ connectionString: dbUrl });
+        this.isPostgres = true;
+        this.initPostgresSchema();
+        this.initialized = true;
+        return;
+      } catch (err) {
+        console.warn('Failed to connect to PostgreSQL, falling back to local SQLite:', err);
+      }
+    }
+
+    // Local SQLite with WAL mode & busy timeout
+    const dataDir = path.join(process.cwd(), 'data');
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    const dbPath = path.join(dataDir, 'contracts.db');
+
+    try {
+      const { DatabaseSync } = require('node:sqlite');
+      this.db = new DatabaseSync(dbPath);
+      // Concurrency settings: WAL mode allows concurrent workers
+      try {
+        this.db.exec('PRAGMA journal_mode = WAL;');
+        this.db.exec('PRAGMA busy_timeout = 5000;');
+      } catch {}
+
+      this.initSqliteSchema();
+      this.initialized = true;
+    } catch (e) {
+      console.error('Failed to initialize node:sqlite:', e);
+    }
+  }
+
+  private initSqliteSchema() {
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS documents (
+        id TEXT PRIMARY KEY,
+        filename TEXT NOT NULL,
+        filetype TEXT NOT NULL,
+        filesize INTEGER NOT NULL,
+        total_pages INTEGER NOT NULL,
+        total_words INTEGER NOT NULL,
+        raw_text TEXT NOT NULL,
+        pages_json TEXT NOT NULL,
+        clauses_json TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        status TEXT NOT NULL,
+        error_message TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS chats (
+        id TEXT PRIMARY KEY,
+        document_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY,
+        chat_id TEXT NOT NULL,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        quotes_json TEXT NOT NULL,
+        coverage_json TEXT NOT NULL,
+        agent_steps_json TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS comparisons (
+        id TEXT PRIMARY KEY,
+        doc_a_id TEXT NOT NULL,
+        doc_b_id TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        diffs_json TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+    `);
+  }
+
+  private async initPostgresSchema() {
+    await this.pgPool.query(`
+      CREATE TABLE IF NOT EXISTS documents (
+        id TEXT PRIMARY KEY,
+        filename TEXT NOT NULL,
+        filetype TEXT NOT NULL,
+        filesize INTEGER NOT NULL,
+        total_pages INTEGER NOT NULL,
+        total_words INTEGER NOT NULL,
+        raw_text TEXT NOT NULL,
+        pages_json TEXT NOT NULL,
+        clauses_json TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        status TEXT NOT NULL,
+        error_message TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS chats (
+        id TEXT PRIMARY KEY,
+        document_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY,
+        chat_id TEXT NOT NULL,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        quotes_json TEXT NOT NULL,
+        coverage_json TEXT NOT NULL,
+        agent_steps_json TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS comparisons (
+        id TEXT PRIMARY KEY,
+        doc_a_id TEXT NOT NULL,
+        doc_b_id TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        diffs_json TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+    `);
+  }
+
+  // --- Document Operations ---
+  public async saveDocument(doc: DocumentRecord): Promise<void> {
+    this.ensureInit();
+    if (this.isPostgres) {
+      await this.pgPool.query(
+        `INSERT INTO documents (id, filename, filetype, filesize, total_pages, total_words, raw_text, pages_json, clauses_json, created_at, status, error_message)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+         ON CONFLICT (id) DO UPDATE SET
+          filename = EXCLUDED.filename,
+          raw_text = EXCLUDED.raw_text,
+          pages_json = EXCLUDED.pages_json,
+          clauses_json = EXCLUDED.clauses_json,
+          status = EXCLUDED.status,
+          error_message = EXCLUDED.error_message`,
+        [doc.id, doc.filename, doc.filetype, doc.filesize, doc.total_pages, doc.total_words, doc.raw_text, doc.pages_json, doc.clauses_json, doc.created_at, doc.status, doc.error_message || null]
+      );
+      return;
+    }
+
+    const stmt = this.db.prepare(`
+      INSERT OR REPLACE INTO documents 
+      (id, filename, filetype, filesize, total_pages, total_words, raw_text, pages_json, clauses_json, created_at, status, error_message)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    stmt.run(doc.id, doc.filename, doc.filetype, doc.filesize, doc.total_pages, doc.total_words, doc.raw_text, doc.pages_json, doc.clauses_json, doc.created_at, doc.status, doc.error_message || null);
+  }
+
+  public async getDocument(id: string): Promise<DocumentRecord | null> {
+    this.ensureInit();
+    if (this.isPostgres) {
+      const res = await this.pgPool.query('SELECT * FROM documents WHERE id = $1', [id]);
+      return res.rows[0] || null;
+    }
+    const stmt = this.db.prepare('SELECT * FROM documents WHERE id = ?');
+    const row = stmt.get(id);
+    return (row as DocumentRecord) || null;
+  }
+
+  public async listDocuments(): Promise<Omit<DocumentRecord, 'raw_text' | 'pages_json'>[]> {
+    this.ensureInit();
+    if (this.isPostgres) {
+      const res = await this.pgPool.query(
+        'SELECT id, filename, filetype, filesize, total_pages, total_words, clauses_json, created_at, status, error_message FROM documents ORDER BY created_at DESC'
+      );
+      return res.rows;
+    }
+    const stmt = this.db.prepare(
+      'SELECT id, filename, filetype, filesize, total_pages, total_words, clauses_json, created_at, status, error_message FROM documents ORDER BY created_at DESC'
+    );
+    return stmt.all() as any[];
+  }
+
+  public async deleteDocument(id: string): Promise<void> {
+    this.ensureInit();
+    if (this.isPostgres) {
+      await this.pgPool.query('DELETE FROM documents WHERE id = $1', [id]);
+      await this.pgPool.query('DELETE FROM chats WHERE document_id = $1', [id]);
+      return;
+    }
+    this.db.prepare('DELETE FROM documents WHERE id = ?').run(id);
+    this.db.prepare('DELETE FROM chats WHERE document_id = ?').run(id);
+  }
+
+  // --- Chat & Messages ---
+  public async getOrCreateChat(documentId: string, title = 'New Conversation'): Promise<ChatRecord> {
+    this.ensureInit();
+    if (this.isPostgres) {
+      const res = await this.pgPool.query('SELECT * FROM chats WHERE document_id = $1 ORDER BY updated_at DESC LIMIT 1', [documentId]);
+      if (res.rows[0]) return res.rows[0];
+
+      const newChat: ChatRecord = {
+        id: 'chat_' + Math.random().toString(36).substring(2, 11),
+        document_id: documentId,
+        title,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      await this.pgPool.query(
+        'INSERT INTO chats (id, document_id, title, created_at, updated_at) VALUES ($1, $2, $3, $4, $5)',
+        [newChat.id, newChat.document_id, newChat.title, newChat.created_at, newChat.updated_at]
+      );
+      return newChat;
+    }
+
+    const existing = this.db.prepare('SELECT * FROM chats WHERE document_id = ? ORDER BY updated_at DESC LIMIT 1').get(documentId);
+    if (existing) return existing as ChatRecord;
+
+    const newChat: ChatRecord = {
+      id: 'chat_' + Math.random().toString(36).substring(2, 11),
+      document_id: documentId,
+      title,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    this.db.prepare('INSERT INTO chats (id, document_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)').run(
+      newChat.id,
+      newChat.document_id,
+      newChat.title,
+      newChat.created_at,
+      newChat.updated_at
+    );
+    return newChat;
+  }
+
+  public async getChat(chatId: string): Promise<ChatRecord | null> {
+    this.ensureInit();
+    if (this.isPostgres) {
+      const res = await this.pgPool.query('SELECT * FROM chats WHERE id = $1', [chatId]);
+      return res.rows[0] || null;
+    }
+    const row = this.db.prepare('SELECT * FROM chats WHERE id = ?').get(chatId);
+    return (row as ChatRecord) || null;
+  }
+
+  public async listChatsForDoc(documentId: string): Promise<ChatRecord[]> {
+    this.ensureInit();
+    if (this.isPostgres) {
+      const res = await this.pgPool.query('SELECT * FROM chats WHERE document_id = $1 ORDER BY updated_at DESC', [documentId]);
+      return res.rows;
+    }
+    return this.db.prepare('SELECT * FROM chats WHERE document_id = ? ORDER BY updated_at DESC').all(documentId) as ChatRecord[];
+  }
+
+  public async saveMessage(msg: MessageRecord): Promise<void> {
+    this.ensureInit();
+    if (this.isPostgres) {
+      await this.pgPool.query(
+        `INSERT INTO messages (id, chat_id, role, content, quotes_json, coverage_json, agent_steps_json, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         ON CONFLICT (id) DO UPDATE SET content = EXCLUDED.content, quotes_json = EXCLUDED.quotes_json, coverage_json = EXCLUDED.coverage_json, agent_steps_json = EXCLUDED.agent_steps_json`,
+        [msg.id, msg.chat_id, msg.role, msg.content, msg.quotes_json, msg.coverage_json, msg.agent_steps_json, msg.created_at]
+      );
+      await this.pgPool.query('UPDATE chats SET updated_at = $1 WHERE id = $2', [new Date().toISOString(), msg.chat_id]);
+      return;
+    }
+
+    this.db.prepare(`
+      INSERT OR REPLACE INTO messages
+      (id, chat_id, role, content, quotes_json, coverage_json, agent_steps_json, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(msg.id, msg.chat_id, msg.role, msg.content, msg.quotes_json, msg.coverage_json, msg.agent_steps_json, msg.created_at);
+
+    this.db.prepare('UPDATE chats SET updated_at = ? WHERE id = ?').run(new Date().toISOString(), msg.chat_id);
+  }
+
+  public async getMessages(chatId: string): Promise<MessageRecord[]> {
+    this.ensureInit();
+    if (this.isPostgres) {
+      const res = await this.pgPool.query('SELECT * FROM messages WHERE chat_id = $1 ORDER BY created_at ASC', [chatId]);
+      return res.rows;
+    }
+    return this.db.prepare('SELECT * FROM messages WHERE chat_id = ? ORDER BY created_at ASC').all(chatId) as MessageRecord[];
+  }
+
+  public async deleteChat(chatId: string): Promise<void> {
+    this.ensureInit();
+    if (this.isPostgres) {
+      await this.pgPool.query('DELETE FROM messages WHERE chat_id = $1', [chatId]);
+      await this.pgPool.query('DELETE FROM chats WHERE id = $1', [chatId]);
+      return;
+    }
+    this.db.prepare('DELETE FROM messages WHERE chat_id = ?').run(chatId);
+    this.db.prepare('DELETE FROM chats WHERE id = ?').run(chatId);
+  }
+
+  // --- Comparison Records ---
+  public async saveComparison(comp: ComparisonRecord): Promise<void> {
+    this.ensureInit();
+    if (this.isPostgres) {
+      await this.pgPool.query(
+        `INSERT INTO comparisons (id, doc_a_id, doc_b_id, summary, diffs_json, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (id) DO UPDATE SET summary = EXCLUDED.summary, diffs_json = EXCLUDED.diffs_json`,
+        [comp.id, comp.doc_a_id, comp.doc_b_id, comp.summary, comp.diffs_json, comp.created_at]
+      );
+      return;
+    }
+    this.db.prepare(`
+      INSERT OR REPLACE INTO comparisons (id, doc_a_id, doc_b_id, summary, diffs_json, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(comp.id, comp.doc_a_id, comp.doc_b_id, comp.summary, comp.diffs_json, comp.created_at);
+  }
+
+  public async getComparison(id: string): Promise<ComparisonRecord | null> {
+    this.ensureInit();
+    if (this.isPostgres) {
+      const res = await this.pgPool.query('SELECT * FROM comparisons WHERE id = $1', [id]);
+      return res.rows[0] || null;
+    }
+    const row = this.db.prepare('SELECT * FROM comparisons WHERE id = ?').get(id);
+    return (row as ComparisonRecord) || null;
+  }
+}
+
+export const db = new DatabaseManager();
