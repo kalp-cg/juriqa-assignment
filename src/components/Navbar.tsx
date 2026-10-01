@@ -225,8 +225,21 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <span>Open Excalidraw.com</span>
                 </a>
               </div>
+
+              <div className="pt-1">
+                <a
+                  href="/architecture_diagram.png"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full inline-flex items-center justify-center space-x-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-xs font-medium transition-colors"
+                >
+                  <FileText className="w-3.5 h-3.5 text-slate-600" />
+                  <span>View High-Res PNG Architecture Diagram</span>
+                </a>
+              </div>
+
               <p className="text-[11px] text-slate-500 text-center">
-                To view or edit: Download the file above, then drag & drop it directly onto <strong>excalidraw.com</strong>.
+                To view or edit: Download the .excalidraw file above, then drag & drop it directly onto <strong>excalidraw.com</strong>.
               </p>
             </div>
           </div>
