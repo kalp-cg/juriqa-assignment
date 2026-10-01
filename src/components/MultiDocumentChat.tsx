@@ -53,6 +53,10 @@ export const MultiDocumentChat: React.FC<MultiDocumentChatProps> = ({
     let partial = '';
 
     try {
+      const customKey = typeof window !== 'undefined' ? localStorage.getItem('veritas_ai_key') : null;
+      const customBase = typeof window !== 'undefined' ? localStorage.getItem('veritas_ai_base_url') : null;
+      const customModel = typeof window !== 'undefined' ? localStorage.getItem('veritas_ai_model') : null;
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -60,6 +64,9 @@ export const MultiDocumentChat: React.FC<MultiDocumentChatProps> = ({
           chatId,
           documentIds: selectedDocIds,
           message: `Compare across the selected contracts: ${question.trim()}`,
+          apiKey: customKey || undefined,
+          baseUrl: customBase || undefined,
+          model: customModel || undefined,
         }),
       });
 

@@ -177,6 +177,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     let localSteps: AgentStep[] = [];
 
     try {
+      const customKey = typeof window !== 'undefined' ? localStorage.getItem('veritas_ai_key') : null;
+      const customBase = typeof window !== 'undefined' ? localStorage.getItem('veritas_ai_base_url') : null;
+      const customModel = typeof window !== 'undefined' ? localStorage.getItem('veritas_ai_model') : null;
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -184,6 +188,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           chatId: activeChatId,
           documentIds: [documentId],
           message: userText,
+          apiKey: customKey || undefined,
+          baseUrl: customBase || undefined,
+          model: customModel || undefined,
         }),
         signal: controller.signal,
       });

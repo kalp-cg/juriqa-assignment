@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { chatId, documentIds, message: userMessage } = body;
+    const { chatId, documentIds, message: userMessage, apiKey, baseUrl, model } = body;
 
     if (!userMessage || !chatId || !documentIds || documentIds.length === 0) {
       return new Response(JSON.stringify({ error: 'Missing required parameters' }), {
@@ -77,7 +77,10 @@ export async function POST(req: NextRequest) {
               }
               sendEvent(event);
             },
-            req.signal
+            req.signal,
+            apiKey,
+            baseUrl,
+            model
           );
 
           // Save completed assistant message to DB

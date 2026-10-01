@@ -263,16 +263,16 @@ export function extractQuotesFromAnswer(answerText: string): string[] {
   let match: RegExpExecArray | null;
   while ((match = blockquoteRegex.exec(answerText)) !== null) {
     const q = match[1].trim();
-    if (q.length > 15 && !quotes.includes(q)) {
+    if (q.length >= 3 && !quotes.includes(q)) {
       quotes.push(q);
     }
   }
 
   // Match explicit quotation marks within text: "..." or “...”
-  const quotedRegex = /["“]([^"”\n]{20,300})["”]/g;
+  const quotedRegex = /["“]([^"”\n]{3,300})["”]/g;
   while ((match = quotedRegex.exec(answerText)) !== null) {
     const q = match[1].trim();
-    if (q.length > 20 && !quotes.includes(q)) {
+    if (q.length >= 3 && !quotes.includes(q)) {
       quotes.push(q);
     }
   }
