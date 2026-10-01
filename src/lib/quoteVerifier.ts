@@ -133,10 +133,33 @@ export function verifyQuoteAgainstDocument(
 
   // If direct normalized match found, locate raw boundaries
   if (directIdx !== -1) {
+    const rawDirectIdx = fullRawText.indexOf(cleanQuote);
+    if (rawDirectIdx !== -1) {
+      let pageNum = 1;
+      for (const po of pageOffsets) {
+        if (rawDirectIdx >= po.startOffset && rawDirectIdx <= po.endOffset) {
+          pageNum = po.pageNumber;
+          break;
+        }
+      }
+      return {
+        quote: rawQuote,
+        verified: true,
+        documentId,
+        documentName,
+        pageNumber: pageNum,
+        endPageNumber: pageNum,
+        startOffset: rawDirectIdx,
+        endOffset: rawDirectIdx + cleanQuote.length,
+        matchedText: cleanQuote,
+        confidence: 1.0,
+      };
+    }
+
     // Locate token boundaries that correspond to this quote
     const quoteWords = cleanQuote.split(/\s+/).filter(Boolean);
-    const firstWordNorm = quoteWords[0].toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
-    const lastWordNorm = quoteWords[quoteWords.length - 1].toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+    const firstWordNorm = quoteWords[0]?.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '') || '';
+    const lastWordNorm = quoteWords[quoteWords.length - 1]?.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '') || '';
 
     for (let i = 0; i < tokens.length; i++) {
       if (tokens[i].normalizedToken === firstWordNorm) {
