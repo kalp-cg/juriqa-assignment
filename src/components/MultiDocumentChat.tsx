@@ -9,7 +9,7 @@ import {
   ShieldAlert,
   ExternalLink,
   FileText,
-  Sparkles,
+  Loader2,
   ArrowRight,
 } from 'lucide-react';
 import { DocumentSummary } from './DocumentLibrary';
@@ -185,7 +185,7 @@ export const MultiDocumentChat: React.FC<MultiDocumentChatProps> = ({
               disabled={isSynthesizing || !question.trim() || selectedDocIds.length < 2}
               className="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-md shadow-sm transition-colors disabled:opacity-40"
             >
-              <Sparkles className="w-3.5 h-3.5" />
+              {isSynthesizing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
               <span>{isSynthesizing ? 'Analyzing...' : 'Synthesize'}</span>
             </button>
           </div>
@@ -248,8 +248,9 @@ export const MultiDocumentChat: React.FC<MultiDocumentChatProps> = ({
                   >
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="font-semibold text-slate-900 truncate">
-                          📄 {q.documentName || 'Contract'}
+                        <span className="font-semibold text-slate-900 truncate flex items-center space-x-1.5">
+                          <FileText className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                          <span>{q.documentName || 'Contract'}</span>
                         </span>
                         {q.verified ? (
                           <span className="inline-flex items-center space-x-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">

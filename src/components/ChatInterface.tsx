@@ -4,9 +4,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Send,
   Square,
-  Sparkles,
+  Scale,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
+  Loader2,
   ExternalLink,
   ChevronDown,
   ChevronRight,
@@ -333,8 +335,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && !isGenerating && (
           <div className="text-center py-12 px-4">
-            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 mx-auto mb-3">
-              <Sparkles className="w-5 h-5 text-slate-700" />
+            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-700 mx-auto mb-3 border border-slate-200">
+              <Scale className="w-5 h-5 text-slate-700" />
             </div>
             <h4 className="text-sm font-semibold text-slate-900">Ask any question about this contract</h4>
             <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
@@ -475,8 +477,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       </blockquote>
 
                       {!q.verified && q.reason && (
-                        <p className="text-[10px] text-amber-800 mt-1 font-sans">
-                          ⚠️ {q.reason}
+                        <p className="text-[10px] text-amber-800 mt-1 font-sans flex items-center space-x-1">
+                          <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
+                          <span>{q.reason}</span>
                         </p>
                       )}
                     </div>

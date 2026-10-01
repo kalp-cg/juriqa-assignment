@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { FileText, MessageSquare, Layers, GitCompare, Sparkles, ShieldCheck, Settings, Key, X, Check, Network, ExternalLink, Download } from 'lucide-react';
+import { FileText, MessageSquare, Layers, GitCompare, FolderDown, Settings, Key, X, Check, Network, ExternalLink, Download, Loader2 } from 'lucide-react';
 
 interface NavbarProps {
   activeTab: 'library' | 'chat' | 'multi' | 'compare';
@@ -67,20 +67,17 @@ export const Navbar: React.FC<NavbarProps> = ({
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            {/* Logo & Brand */}
-            <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setActiveTab('library')}>
-              <div className="w-9 h-9 rounded-lg bg-slate-900 flex items-center justify-center text-white shadow-sm">
-                <ShieldCheck className="w-5 h-5 text-emerald-400" />
-              </div>
-              <div>
-                <div className="flex items-center space-x-1.5">
-                  <span className="font-semibold text-slate-900 tracking-tight text-base font-serif">VERITAS</span>
-                  <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-mono font-medium border border-slate-200">
-                    LEGAL AI
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-500 leading-tight">Verified Contract Analysis & Comparison</p>
-              </div>
+            {/* Big Fancy Brand Name: VERITAS */}
+            <div
+              className="flex items-center space-x-3 cursor-pointer select-none py-1 group"
+              onClick={() => setActiveTab('library')}
+            >
+              <span className="font-serif text-2xl sm:text-3xl font-bold tracking-[0.25em] text-slate-900 uppercase transition-colors group-hover:text-slate-700">
+                VERITAS
+              </span>
+              <span className="hidden sm:inline-block text-[10px] tracking-widest uppercase text-slate-400 font-sans font-semibold border-l border-slate-300 pl-3">
+                Contract Intelligence
+              </span>
             </div>
 
             {/* Navigation Tabs */}
@@ -168,7 +165,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-300 rounded-md shadow-xs transition-colors disabled:opacity-50"
                 title="Preloads sample contracts (PDF, DOCX v1 & v2, and Scanned test PDF)"
               >
-                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                {isSeeding ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-600" />
+                ) : (
+                  <FolderDown className="w-3.5 h-3.5 text-slate-600" />
+                )}
                 <span>{isSeeding ? 'Loading Samples...' : 'Load Sample Contracts'}</span>
               </button>
             </div>
