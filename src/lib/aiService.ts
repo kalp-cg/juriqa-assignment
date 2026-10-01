@@ -37,7 +37,11 @@ const STOP_WORDS = new Set([
   'who', 'where', 'when', 'why', 'how', 'give', 'show', 'does', 'did',
   'about', 'please', 'can', 'you', 'given', 'person', 'candidate',
   'contract', 'agreement', 'document', 'say', 'stated', 'mention',
-  'section', 'details', 'his', 'her', 'their'
+  'section', 'details', 'his', 'her', 'their',
+  // Multilingual & regional conversational stop words (Gujarati, Hindi, Gujlish)
+  'mane', 'tamne', 'vishe', 'mahiti', 'joiae', 'joie', 'chhe', 'che',
+  'su', 'shu', 'kem', 'karo', 'aapo', 'batao', 'mujhe', 'kya', 'hai',
+  'bataiye', 'samjhao', 'kaho', 'nathi', 'hata', 'hota'
 ]);
 
 function normalizeQuery(q: string): string {
@@ -600,8 +604,8 @@ export async function runAgenticDocumentResearch(
           content: `You are an expert legal document analyst.
 RULES:
 1. Always look up the document using tools before answering.
-2. Answer the user's specific question directly, concisely, and in natural, human-readable language.
-3. If the document uses regional languages, non-English scripts, or legacy font encodings, always provide a clear, plain translation and explanation of what the text substantively means so a human reader can easily understand it.
+2. Answer the user's specific question directly, concisely, and in natural, human-readable language. Always respond in the language or script the user asked in (e.g. if the user asks in Gujarati or Gujarati in Latin script like "mane cupid stock vishe mahiti joiae chhe", explain the substantive answer in natural, clear Gujarati so the user can easily read and understand).
+3. If the document uses regional languages, non-English scripts, or legacy font encodings, always provide a clear, plain translation and explanation of what the text substantively means in the user's language so a human reader can easily understand it.
 4. Back your answer with exact verbatim quotes enclosed in quotation marks (e.g. > "quote"). Keep quotes focused on the pertinent words (1 to 2 sentences max).
 5. DO NOT paraphrase quotes. Exact wording is strictly required.
 6. NEVER enclose conversational text or the user prompt in quotation marks. Only actual quotes from the document must be in quotes.
