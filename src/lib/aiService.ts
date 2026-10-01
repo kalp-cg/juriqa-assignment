@@ -36,12 +36,26 @@ const STOP_WORDS = new Set([
   'to', 'was', 'were', 'will', 'with', 'tell', 'me', 'what', 'which',
   'who', 'where', 'when', 'why', 'how', 'give', 'show', 'does', 'did',
   'about', 'please', 'can', 'you', 'given', 'person', 'candidate',
-  'contract', 'agreement', 'document', 'say', 'stated', 'mention'
+  'contract', 'agreement', 'document', 'say', 'stated', 'mention',
+  'section', 'details', 'his', 'her', 'their'
 ]);
 
-function extractKeywords(query: string): string[] {
-  return query
+function normalizeQuery(q: string): string {
+  return q
     .toLowerCase()
+    .replace(/expre?i[ec][ec]n?ce?/g, 'experience')
+    .replace(/experiance|experiense|expirience/g, 'experience')
+    .replace(/univercity|universty/g, 'university')
+    .replace(/educatn|edication|educaton/g, 'education')
+    .replace(/liabilty|liabiltiy/g, 'liability')
+    .replace(/terminatn|terminaton/g, 'termination')
+    .replace(/achivement|acheivement/g, 'achievement')
+    .replace(/projct|projets/g, 'projects');
+}
+
+function extractKeywords(query: string): string[] {
+  const norm = normalizeQuery(query);
+  return norm
     .replace(/[^\w\s]/g, ' ')
     .split(/\s+/)
     .filter(w => w.length > 2 && !STOP_WORDS.has(w));
@@ -57,12 +71,16 @@ function synthesizeGroundedAnswer(
   docName: string,
   pages: DocumentPage[]
 ): string {
+  const qNorm = normalizeQuery(query);
   const keywords = extractKeywords(query);
-  const qLow = query.toLowerCase();
   const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
   // 1. Name / Identity Query
-  if (qLow.includes('name') || qLow.includes('who is') || (keywords.length === 0 && (qLow.includes('person') || qLow.includes('candidate')))) {
+  if (
+    qNorm.includes('name') ||
+    qNorm.includes('who is') ||
+    (keywords.length === 0 && (qNorm.includes('person') || qNorm.includes('candidate')))
+  ) {
     const firstLine = lines[0] || 'Unknown';
     return (
       `The name of the individual in **${docName}** is **${firstLine}**.\n\n` +
@@ -72,8 +90,59 @@ function synthesizeGroundedAnswer(
     );
   }
 
-  // 2. Education / University / College Query
-  if (qLow.includes('university') || qLow.includes('education') || qLow.includes('college') || qLow.includes('degree') || qLow.includes('school')) {
+  // 2. Experience / Work / Internship / Job / Career (including "recent experience" or "experience section")
+  if (
+    qNorm.includes('experience') ||
+    qNorm.includes('intern') ||
+    qNorm.includes('job') ||
+    qNorm.includes('work') ||
+    qNorm.includes('career') ||
+    qNorm.includes('role')
+  ) {
+    const expIdx = lines.findIndex(l => /^experience$/i.test(l.replace(/[^a-zA-Z]/g, '')));
+    if (expIdx !== -1) {
+      const expItems: string[] = [];
+      for (let i = expIdx + 1; i < lines.length; i++) {
+        if (/^(projects|education|achievements|technical skills|certifications)$/i.test(lines[i].replace(/[^a-zA-Z]/g, ''))) {
+          break;
+        }
+        if (lines[i].startsWith('•') || lines[i].includes('–') || lines[i].includes('-')) {
+          expItems.push(lines[i]);
+        }
+      }
+
+      const recentRoleLine = expItems.find(item => item.startsWith('•')) || expItems[0] || lines[expIdx + 1];
+      const cleanQuote = recentRoleLine ? recentRoleLine.replace(/^[•\s]+/, '').trim() : '';
+
+      if (qNorm.includes('recent') || qNorm.includes('latest') || qNorm.includes('current')) {
+        return (
+          `According to **${docName}**, the most recent professional experience is:\n\n` +
+          `- **${cleanQuote}**\n\n` +
+          `As recorded in the Experience section:\n\n` +
+          `> "${cleanQuote}"`
+        );
+      }
+
+      const formattedRoles = expItems.filter(item => item.startsWith('•')).slice(0, 3);
+      return (
+        `According to **${docName}**, the professional experience includes:\n\n` +
+        (formattedRoles.length > 0
+          ? formattedRoles.map(r => `- ${r.replace(/^[•\s]+/, '').trim()}`).join('\n') + '\n\n'
+          : `- **${cleanQuote}**\n\n`) +
+        `As documented in the Experience section:\n\n` +
+        `> "${cleanQuote}"`
+      );
+    }
+  }
+
+  // 3. Education / University / College Query
+  if (
+    qNorm.includes('university') ||
+    qNorm.includes('education') ||
+    qNorm.includes('college') ||
+    qNorm.includes('degree') ||
+    qNorm.includes('school')
+  ) {
     const eduIdx = lines.findIndex(l => /education/i.test(l));
     let uniLine = '';
     let degreeLine = '';
@@ -100,14 +169,81 @@ function synthesizeGroundedAnswer(
     }
   }
 
-  // 3. Technical Skills / Tech Stack Query
-  if (qLow.includes('skill') || qLow.includes('languages') || qLow.includes('tech stack') || qLow.includes('technologies')) {
+  // 4. Projects / Portfolio Work Query
+  if (qNorm.includes('project') || qNorm.includes('built') || qNorm.includes('portfolio work')) {
+    const projIdx = lines.findIndex(l => /^projects$/i.test(l.replace(/[^a-zA-Z]/g, '')));
+    if (projIdx !== -1) {
+      const projItems: string[] = [];
+      for (let i = projIdx + 1; i < lines.length; i++) {
+        if (/^(experience|education|achievements|technical skills|certifications)$/i.test(lines[i].replace(/[^a-zA-Z]/g, ''))) {
+          break;
+        }
+        if (lines[i].startsWith('•') || lines[i].includes('–') || lines[i].includes('-')) {
+          projItems.push(lines[i]);
+        }
+      }
+      const firstProj = projItems.find(p => p.startsWith('•')) || projItems[0] || lines[projIdx + 1];
+      const cleanQuote = firstProj ? firstProj.replace(/^[•\s]+/, '').trim() : '';
+
+      return (
+        `According to **${docName}**, key projects include:\n\n` +
+        projItems.filter(p => p.startsWith('•')).slice(0, 4).map(p => `- ${p.replace(/^[•\s]+/, '').trim()}`).join('\n') + '\n\n' +
+        `As documented in the Projects section:\n\n` +
+        `> "${cleanQuote}"`
+      );
+    }
+  }
+
+  // 5. Achievements / Awards / Hackathons / Certifications
+  if (
+    qNorm.includes('achievement') ||
+    qNorm.includes('award') ||
+    qNorm.includes('hackathon') ||
+    qNorm.includes('winner') ||
+    qNorm.includes('certification')
+  ) {
+    const achIdx = lines.findIndex(l => /^achievements$/i.test(l.replace(/[^a-zA-Z]/g, '')));
+    if (achIdx !== -1) {
+      const items: string[] = [];
+      for (let i = achIdx + 1; i < lines.length; i++) {
+        if (/^(experience|education|projects|technical skills)$/i.test(lines[i].replace(/[^a-zA-Z]/g, ''))) break;
+        if (lines[i].startsWith('•')) items.push(lines[i]);
+      }
+      const quote = items[0] ? items[0].replace(/^[•\s]+/, '').trim() : lines[achIdx + 1];
+      return (
+        `According to **${docName}**, achievements and honors include:\n\n` +
+        items.map(it => `- ${it.replace(/^[•\s]+/, '').trim()}`).join('\n') + '\n\n' +
+        `As recorded in the Achievements section:\n\n` +
+        `> "${quote}"`
+      );
+    }
+  }
+
+  // 6. Contact / Email / Phone / Links
+  if (
+    qNorm.includes('contact') ||
+    qNorm.includes('email') ||
+    qNorm.includes('phone') ||
+    qNorm.includes('github') ||
+    qNorm.includes('linkedin')
+  ) {
+    const contactLine = lines.find(l => /@|phone|\+91|github|linkedin|portfolio/i.test(l));
+    if (contactLine) {
+      return (
+        `The contact and portfolio details in **${docName}** are:\n\n` +
+        `> "${contactLine.trim()}"`
+      );
+    }
+  }
+
+  // 7. Technical Skills / Tech Stack Query
+  if (qNorm.includes('skill') || qNorm.includes('languages') || qNorm.includes('tech stack') || qNorm.includes('technologies')) {
     const skillsIdx = lines.findIndex(l => /technical skills/i.test(l));
     const skillLines: string[] = [];
     if (skillsIdx !== -1) {
       for (let i = skillsIdx + 1; i < Math.min(lines.length, skillsIdx + 7); i++) {
         if (/experience|projects|education|achievements/i.test(lines[i])) break;
-        skillLines.push(lines[i].replace(/^[•\-\–\s]+/, ''));
+        skillLines.push(lines[i].replace(/^[•\-\–\s]+/, '').trim());
       }
     }
     const quote = skillLines[0] || lines.find(l => /languages|python|react/i.test(l)) || '';
@@ -121,8 +257,8 @@ function synthesizeGroundedAnswer(
     }
   }
 
-  // 4. Limitation of Liability / Monetary Cap Query
-  if (qLow.includes('liability') || qLow.includes('cap') || qLow.includes('damages') || qLow.includes('financial limit')) {
+  // 8. Limitation of Liability / Monetary Cap Query
+  if (qNorm.includes('liability') || qNorm.includes('cap') || qNorm.includes('damages') || qNorm.includes('financial limit')) {
     const liabLine = lines.find(l => /liability|exceed|cap/i.test(l) && /(?:AED|USD|\$|EUR|[0-9,]+)/i.test(l)) ||
       lines.find(l => /liability/i.test(l));
 
@@ -139,8 +275,8 @@ function synthesizeGroundedAnswer(
     }
   }
 
-  // 5. Term / Termination Query
-  if (qLow.includes('terminat') || qLow.includes('notice') || qLow.includes('cure') || qLow.includes('breach')) {
+  // 9. Term / Termination Query
+  if (qNorm.includes('terminat') || qNorm.includes('notice') || qNorm.includes('cure') || qNorm.includes('breach')) {
     const termLine = lines.find(l => /terminat|written notice|material breach|cure/i.test(l));
     if (termLine) {
       return (
@@ -151,8 +287,8 @@ function synthesizeGroundedAnswer(
     }
   }
 
-  // 6. Governing Law / Dispute Resolution Query
-  if (qLow.includes('governing law') || qLow.includes('jurisdiction') || qLow.includes('arbitration') || qLow.includes('dispute')) {
+  // 10. Governing Law / Dispute Resolution Query
+  if (qNorm.includes('governing law') || qNorm.includes('jurisdiction') || qNorm.includes('arbitration') || qNorm.includes('dispute')) {
     const lawLine = lines.find(l => /governed|laws of|jurisdiction|arbitration|dispute/i.test(l));
     if (lawLine) {
       const match = lawLine.match(/(?:Dubai International Financial Centre|DIFC|Abu Dhabi Global Market|ADGM|United Arab Emirates|UAE|New York|Delaware)/i);
@@ -167,8 +303,8 @@ function synthesizeGroundedAnswer(
     }
   }
 
-  // 7. Fees & Payment Terms
-  if (qLow.includes('fee') || qLow.includes('payment') || qLow.includes('invoice') || qLow.includes('price')) {
+  // 11. Fees & Payment Terms
+  if (qNorm.includes('fee') || qNorm.includes('payment') || qNorm.includes('invoice') || qNorm.includes('price')) {
     const payLine = lines.find(l => /payment|fee|invoice|payable/i.test(l));
     if (payLine) {
       return (
@@ -179,7 +315,7 @@ function synthesizeGroundedAnswer(
     }
   }
 
-  // 8. General Keyword Matching across lines
+  // 12. General Keyword Matching across lines
   let bestLine = '';
   let bestScore = 0;
 
@@ -205,7 +341,7 @@ function synthesizeGroundedAnswer(
   }
 
   return (
-    `I examined **${docName}**, specifically searching for "${keywords.join(' ')}".\n\n` +
+    `I examined **${docName}**, specifically searching for terms matching: ${keywords.join(', ') || qNorm}.\n\n` +
     `No clauses or statements addressing this topic were found in the document.\n\n` +
     `As required by contract analysis standards, no obligations or facts on this subject can be presumed without explicit textual evidence.`
   );
