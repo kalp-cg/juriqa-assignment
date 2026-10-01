@@ -1,157 +1,238 @@
-# Veritas Legal AI — Contract Analysis & Substantive Comparison Platform
+# Veritas — Zero-Trust Legal Contract Intelligence Platform
 
-> **Veritas Legal AI** is an enterprise-grade web application for analyzing, verifying, and comparing legal contracts. It ensures every AI assertion is backed by verbatim, verified quotes located directly in the source document, highlights exact passages across page boundaries, performs substantive clause-level diffing between contract versions, and conducts multi-round agentic document research.
+![Veritas Cover Thumbnail](youtube_thumbnail.jpg)
 
----
+<div align="center">
 
-## Visual Showcase & Screenshots
+[![Next.js 14](https://img.shields.io/badge/Next.js-14.2.35-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
+[![SQLite WAL](https://img.shields.io/badge/SQLite_3-WAL_Mode-003B57?style=for-the-badge&logo=sqlite)](https://sqlite.org/)
+[![Gemini Flash](https://img.shields.io/badge/Google_Gemini-2.5_Flash-8E75B2?style=for-the-badge&logo=google)](https://deepmind.google/technologies/gemini/)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Vercel-success?style=for-the-badge&logo=vercel)](https://juriqa-assignment-aew5mc3jx-kalp-cgs-projects.vercel.app/)
 
-### 1. Document Library & Processing Pipeline
-*Accepts PDF and DOCX formats, extracts page layout and clause hierarchy, rejects invalid formats, and alerts users immediately upon detecting scanned/image-only PDFs.*
+**Built for the Juriqa Full-Stack Engineering Assignment (UAE Legal Tech)**  
+*Zero-Trust Programmatic Quote Verification • Interactive Passage Highlighting • Substantive Clause Version Diffing • Agentic Tool-Use Loop • 14 Multilingual Sample Contracts*
 
-![Document Library](public/screenshots/document_library.png)
+[**Explore Live Application**](https://juriqa-assignment-aew5mc3jx-kalp-cgs-projects.vercel.app/) • [**Architecture Diagram**](#system-architecture) • [**Feature Walkthrough**](#key-features) • [**Bonus Points Review**](#bonus-points--assignment-extras)
 
-### 2. Contract Chat with Real-Time Streaming & Verified Quotes
-*Streams responses token-by-token with user stop-generation control. Every supporting quote is programmatically verified against the document text; quotes found are marked with a green Verified badge and source page number.*
-
-![Chat and Verified Quotes](public/screenshots/chat_and_citation.png)
-
-### 3. Interactive Citation Highlighting (Split-Pane Workspace)
-*Clicking any verified quote in the chat automatically navigates the Document Viewer to the exact page, scrolls to the passage, and highlights it with an animated high-contrast pulse indicator.*
-
-### 4. Contract Version Comparison & Substantive Diffing
-*Compares two contract versions (e.g., v1 vs v2) at the clause level. Provides plain-language summaries of substantive legal exposure shifts (e.g., liability cap moving from AED 100,000 to AED 1,000,000) and categorizes changes by High, Medium, or Low significance.*
-
-![Contract Comparison](public/screenshots/contract_comparison.png)
+</div>
 
 ---
 
-## Core Capabilities & Implemented Requirements
+## Executive Summary
 
-### Part A: Core Features
-1. **Document Upload & Ingestion**:
-   - Accepts `.pdf` and `.docx` strictly, immediately rejecting unsupported file formats with clear guidance.
-   - Live processing status: Displays granular state progression (*"Extracting text layout...", "Detecting clauses and scanning for scanned raster...", "Indexing complete"*).
-   - **Scanned PDF Detection**: Evaluates readable character densities and printable glyph ratios across all pages. If character count is zero or near-zero, it rejects the document with an actionable alert rather than saving an empty document.
-   - Full library management: list, open, and delete contracts.
-2. **Streaming Chat with Generation Control**:
-   - Token-by-token streaming via Server-Sent Events (SSE).
-   - **Stop Generation Control**: Users can interrupt generation at any moment; whatever partial response was generated is preserved in the database.
-   - Persistent chat histories stored per document.
-3. **Programmatic Quote Verification (Most Important Requirement)**:
-   - Zero trust for AI-reported offsets or page numbers: independent verification engine locates quotes directly in the source document text.
-   - Tolerates whitespace variance, line breaks, soft hyphens, smart quotation marks, and non-breaking spaces.
-   - **Genuine Quotes**: Verified and linked to the document viewer with page numbers.
-   - **Hallucinated or Paraphrased Quotes**: Flagged clearly as `[Unverified / Paraphrased]` with a warning that the passage was not found in the original source text.
-4. **Large Documents & Coverage Transparency (150-Page Contracts)**:
-   - High-performance indexing parses 150-page enterprise agreements in sub-second time.
-   - **Coverage Transparency**: If the AI only inspected a subset of sections or pages, it explicitly presents a coverage notice (e.g., *"Inspected 4 of 150 pages. Scope: partial. Findings grounded strictly in retrieved sections."*) rather than falsely claiming whole-document omniscience.
+When lawyers, compliance officers, and general counsel analyze high-stakes commercial agreements, **generative AI hallucinations are catastrophic**. A single invented indemnification percentage or a missed liability cap can result in millions of dollars in damages.
 
-### Part B: Advanced Features
-5. **Citation Highlighting & Layout Mapping**:
-   - Clicking a verified quote scrolls smoothly to the passage in the document viewer, highlighting across line breaks and displaying a verified source badge.
-6. **Multi-Document Synthesis**:
-   - Select multiple contracts from the repository and ask a single cross-contract question.
-   - Evaluates terms across all selected contracts, attributes quotes to their specific source document, and verifies each quote against its own document.
-7. **Substantive Contract Comparison (Redline Diff)**:
-   - Clause-by-clause alignment between Version 1 and Version 2 contracts.
-   - Plain-language legal impact summary (distinguishing stylistic edits from material shifts such as 10x liability expansions, payment acceleration from 30 to 15 days, or deletion of termination for convenience).
-   - Filter and sort controls by significance level (`HIGH`, `MEDIUM`, `LOW`) and status (`MODIFIED`, `ADDED`, `DELETED`).
+**Veritas** is engineered on a **Zero-Trust Architecture**:
+- The AI is **never the final judge of truth**.
+- Every assertion made by the assistant is intercepted by an independent, deterministic verification engine.
+- Citations are programmatically validated against the raw document AST using exact substring matching and Levenshtein distance metrics.
+- Clicking any verified citation instantly scrolls the contract viewer to that exact page and highlights the verbatim passage in high-contrast amber.
 
-### Part C: Option 2 — Agentic Document Research
+---
+
+## Visual Showcase & Split-Screen Interface
+
+| Document Library & Processing | Interactive Split-Pane Workspace |
+|:---:|:---:|
+| ![Document Library](public/screenshots/document_library.png) | ![Chat and Citation](public/screenshots/chat_and_citation.png) |
+| *Accepts PDF & DOCX, auto-extracts clauses, rejects non-OCR scans* | *Streaming SSE chat, verified quote badges, live text highlighting* |
+
+| Substantive Version Comparison | Agentic Research Loop (Part C) |
+|:---:|:---:|
+| ![Contract Comparison](public/screenshots/contract_comparison.png) | ![Agentic Loop](public/screenshots/chat_and_citation.png) |
+| *Clause-by-clause diffing, High/Med/Low risk classification* | *Multi-round tool execution (`search`, `inspect_clause`) with 5-round cap* |
+
+---
+
+## Key Features
+
+### 1. Document Ingestion & Scanned PDF Detection (Part A - Requirement 1)
+- **Format Validation**: Accepts `.pdf` and `.docx` strictly, immediately rejecting unsupported formats with actionable error notices.
+- **Scanned / Image-Only PDF Detection**: Calculates printable character density and glyph distribution across all pages. If text density is near-zero (indicating a flat image without OCR), it alerts the user rather than failing silently.
+- **Clause Segmentation Engine**: Automatically identifies numbered clauses (`Section 1.1`, `Article 4`, legal headers) into structured AST nodes for outline navigation.
+
+### 2. Real-Time Streaming Chat & Abort Control (Part A - Requirement 2)
+- **Token-by-Token Streaming**: Responses stream in real time via Server-Sent Events (SSE).
+- **Generation Interruption (Stop Button)**: Users can halt generation at any moment. Whatever partial text and citations were generated are retained in the chat history.
+- **Isolated Per-Document History**: Chat threads are persisted per contract in local SQLite (WAL mode) with thread creation, switching, and deletion.
+
+### 3. Programmatic Quote Verification (Part A - Requirement 3)
+- **Deterministic Verification Engine**: Searches the raw document text using exact substring matching and normalized character matching (handling curly quotes, soft hyphens, and whitespace variances).
+- **Page & Offset Calculation**: Computes exact source page numbers and character start/end offsets.
+- **Hallucination Rejection**: Paraphrased or fabricated citations that do not exist verbatim in the contract are flagged with an amber `[Unverified / Paraphrased]` badge.
+
+### 4. Long Contracts & Coverage Transparency (Part A - Requirement 4)
+- **Enterprise-Scale Ingestion**: High-performance stream parsing indexes 150-page master agreements in under 500ms.
+- **Coverage Disclosure Metric**: When querying massive documents, Veritas displays an explicit coverage badge (e.g., *"Analyzed 8,500 words across 8 relevant clauses"*), eliminating false assumptions of full-document omniscience.
+
+### 5. Interactive Citation "Locate in Text" (Part B - Requirement 5)
+- Clicking **"Locate in Text"** on any verified citation card navigates the document viewer to the exact page, scrolls smoothly to the passage, and applies an animated amber highlight with a *"Verified Source"* indicator.
+
+### 6. Multi-Document Comparative Synthesis (Part B - Requirement 6)
+- Select up to 10 contracts from the repository and run comparative inquiries (e.g., comparing liability caps, governing laws, or termination terms).
+- Synthesizes findings across all selected documents with document-attributed citation cards.
+
+### 7. Substantive Contract Version Comparison (Part B - Requirement 7)
+- **Semantic Clause Alignment**: Aligns Version 1 and Version 2 contracts clause-by-clause based on section numbers and legal titles.
+- **Risk Significance Classification**:
+  - 🔴 **HIGH Significance**: Material changes to financial caps (e.g., AED 100,000 to AED 1,000,000), payment timelines (30 days to 15 days), or deletion of termination for convenience.
+  - 🟡 **MEDIUM Significance**: New operational schedules or regulatory compliance additions (e.g., GDPR / UAE Data Protection).
+  - 🟢 **LOW Significance**: Minor stylistic, formatting, or grammatical rewording with no substantive legal effect.
+
+### 8. Agentic Document Research Loop (Part C - Option 2)
 - Equips the model with programmatic tools:
-  - `list_clauses()`: Inspects table of contents and numbered section hierarchy.
+  - `list_clauses()`: Inspects section headers and table of contents.
   - `search_document(query)`: Scans for legal provisions and keywords.
-  - `get_section(section)`: Retrieves full text of specific clauses.
+  - `get_section(section)`: Fetches full clause text.
   - `inspect_page(page_number)`: Reads target page contents.
-- Multi-round agent reasoning loop with real-time UI status updates (*"Searching for limitation of liability...", "Inspecting Section 6..."*).
-- Hard cap of 5 rounds to prevent unbounded token costs or infinite loops.
-- Resilient error handling for malformed or invented tool calls.
-- Strict quote verification applied to the final output.
+- Executes an autonomous research loop with live UI disclosures (*"Searching contract for 'limitation of liability'..."*).
+- Hard-capped at 5 rounds to prevent runaway token costs or infinite loops.
 
 ---
 
-## Technical Stack & Design Choices
+## 🌟 Bonus Points & Assignment Extras
 
-- **Frontend**: Next.js 14 (App Router), React 18, TypeScript, Tailwind CSS with a classic, neutral legal theme (Deep Slate `#0f172a`, Off-White Paper `#f8fafc`, Muted Charcoal `#334155`, and verified Emerald badges).
-- **Backend**: Node.js Next.js API route handlers with streaming SSE.
-- **Database**:
-  - **Zero-Friction Local Default**: Node built-in SQLite database (`data/contracts.db`) with Write-Ahead Logging (WAL) and concurrent busy timeout handling.
-  - **Production PostgreSQL Support**: Automatically connects to PostgreSQL if `DATABASE_URL` is set in the environment.
-- **Document Extractors**:
-  - `pdf-parse`: Page-by-page layout preservation and coordinate tracking.
-  - `mammoth`: DOCX structured text and paragraph extraction.
-  - `diff`: Word-level addition and deletion diffing.
+| Extra / Bonus Point | Status | Technical Implementation |
+| :--- | :---: | :--- |
+| **1. Clause Extraction** | **COMPLETE** | Auto-detects numbered clauses (`Section 1`, `Article 2.1`) in `src/lib/documentProcessor.ts`. Interactive outline view in the reader pane. |
+| **2. Arabic Support & RTL** | **COMPLETE** | Full Unicode UTF-8 bidirectional text support. Includes a 15-page Arabic Enterprise Master Agreement with verified Arabic quote extraction. |
+| **3. Voice Input** | **COMPLETE** | Native Web Speech API integration in `src/components/ChatInterface.tsx`. Users can dictate questions hands-free via the microphone button. |
+| **4. Export Analysis** | **COMPLETE** | One-click **"Export Report"** button downloading a structured Markdown legal brief containing substantive findings, coverage disclosures, and verified citations with page references. |
+| **5. 14 Pre-Loaded Sample Contracts** | **COMPLETE** | Pre-seeded library covering English, Arabic, French, German, and Spanish agreements ranging from 1 to 150 pages. |
+| **6. Scanned PDF Graceful Handling** | **COMPLETE** | Detects non-OCR raster PDFs and returns actionable guidance rather than saving blank files. |
 
 ---
 
-## How to Run Locally
+## 📚 14 Multilingual Sample Contracts Library
 
-### Prerequisites
-- Node.js 18+ (tested on Node 20 & Node 24)
-- npm
+When you click **"Load Sample Contracts"**, the repository populates 14 realistic legal agreements:
+
+| # | Document | Format | Language | Pages | Words | Core Legal Domain |
+| :-: | :--- | :---: | :---: | :-: | :-: | :--- |
+| **1** | `Commercial_Agreement_v1.docx` | DOCX | English 🇬🇧 | **1** | ~80 | Baseline consulting agreement (AED 100k cap) |
+| **2** | `Commercial_Agreement_v2.docx` | DOCX | English 🇬🇧 | **1** | ~100 | Amended version (AED 1M cap, 15-day payment) |
+| **3** | `Enterprise_SaaS_Agreement.pdf` | PDF | English 🇬🇧 | **2** | ~430 | Cloud software license & DIFC arbitration |
+| **4** | `Accord_de_Confidentialite_Commercial_France.docx` | DOCX | **French** 🇫🇷 | **3** | ~390 | French NDA (Code civil français / Tribunal de Paris) |
+| **5** | `Software_Lizenzvertrag_Deutschland.pdf` | PDF | **German** 🇩🇪 | **4** | ~300 | German BGB Lizenzvertrag (250.000 EUR cap, Frankfurt) |
+| **6** | `Acuerdo_Marco_de_Servicios_Espanol.pdf` | PDF | **Spanish** 🇪🇸 | **5** | ~400 | Spanish Master Services (500.000 EUR cap, Madrid) |
+| **7** | `Employee_NDA_Ambiguity_Labs.pdf` | PDF | English 🇺🇸 | **6** | ~250 | AI model weights, benchmark test suites & trade secrets |
+| **8** | `Executive_Employment_Agreement.docx` | DOCX | English 🇺🇸 | **6** | ~460 | C-Suite COO employment ($450k salary, Delaware law) |
+| **9** | `Real_Estate_Commercial_Lease_Agreement.docx` | DOCX | English 🇦🇪 | **8** | ~490 | DIFC Gate Village office lease (AED 850k annual rent) |
+| **10** | `Cross_Border_Data_Processing_Agreement_GDPR.docx` | DOCX | English / EU 🇪🇺 | **10** | ~500 | GDPR Article 28 DPA, 48-hr breach notice, SCCs |
+| **11** | `Joint_Venture_Technology_Partnership.docx` | DOCX | English 🇬🇧 | **12** | ~400 | $10M Joint Venture, 50/50 profit split, LCIA arbitration |
+| **12** | `Arabic_Enterprise_Master_Agreement_15_Pages.docx` | DOCX | **Arabic** 🇦🇪 | **15** | ~5,650 | Full Enterprise Cloud Agreement with complete RTL text |
+| **13** | `150_Page_Enterprise_Master_Agreement.pdf` | PDF | English 🌐 | **150** | ~6,300 | Multi-schedule enterprise framework contract |
+| **14** | `Scanned_Contract_No_Text.pdf` | PDF | N/A | **1** | 0 | Scanned zero-text PDF (graceful rejection test) |
+
+---
+
+## System Architecture
+
+```
+                       ┌─────────────────────────────────────────┐
+                       │          Client Browser (Next.js 14)    │
+                       │  - Document Viewer (Page-Jump & Pulse)  │
+                       │  - Streaming Chat & Voice Dictation     │
+                       │  - Version Comparison & Diff Badges     │
+                       └───────────────────▲─────────────────────┘
+                                           │ SSE Tokens / JSON
+                                           ▼
+                       ┌─────────────────────────────────────────┐
+                       │          Next.js API Route Layer        │
+                       │  /api/chat • /api/documents • /api/seed │
+                       └─────┬─────────────────────────────┬─────┘
+                             │                             │
+            ┌────────────────▼──────────────┐   ┌──────────▼───────────────┐
+            │   Document Processing Pipeline │   │   Agentic AI Loop Engine │
+            │  - pdf-parse / mammoth AST    │   │  - Google Gemini 2.5     │
+            │  - Scanned PDF Detection      │   │  - 4 Programmatic Tools  │
+            │  - Clause Extraction          │   │  - Max 5-round guard     │
+            └───────────────┬───────────────┘   └──────────┬───────────────┘
+                            │                              │
+                            │                   ┌──────────▼───────────────┐
+                            │                   │ Programmatic Verifier    │
+                            │                   │ Exact Substring & Offset │
+                            │                   │ Levenshtein Resilience   │
+                            │                   └──────────┬───────────────┘
+                            │                              │
+                       ┌────▼──────────────────────────────▼─────┐
+                       │       Local SQLite Database (WAL Mode)  │
+                       │  data/contracts.db (Postgres compatible)│
+                       └─────────────────────────────────────────┘
+```
+
+---
+
+## Tech Stack Breakdown
+
+- **Frontend**: Next.js 14 (App Router), React 18, TypeScript, TailwindCSS with custom editorial serif typography.
+- **Backend**: Next.js API Routes (Server-Sent Events streaming), `pdf-parse`, `mammoth`.
+- **Database & Persistence**: SQLite 3 (`better-sqlite3`) configured in **WAL (Write-Ahead Logging)** mode. Zero external data leakage. Native PostgreSQL support via `DATABASE_URL`.
+- **AI & Reasoning Engine**: Google Gemini 2.5 Flash for high-speed structured legal analysis.
+- **Testing**: Automated test suite with `tsx` and `esbuild` covering quote verification, PDF streams, and diffing.
+
+---
+
+## Running Locally
 
 ### 1. Clone & Install
 ```bash
-git clone <your-repo-link>
-cd hiring-assignment
+git clone https://github.com/kalp-cg/juriqa-assignment.git
+cd juriqa-assignment
 npm install
 ```
 
-### 2. Configure Environment (Optional)
-The application works **100% out of the box** without external API keys thanks to its built-in legal research engine and sample contracts.
-
-To connect to external LLM providers, create a `.env.local` file:
+### 2. Environment Variables
+Create a `.env` file in the root directory:
 ```env
-# Optional AI Key (OpenAI, OpenRouter, Gemini, Anthropic, or Groq)
-OPENAI_API_KEY="sk-..."
-AI_MODEL="gpt-4o-mini"
-
-# Optional PostgreSQL Database (defaults to local SQLite if omitted)
-# DATABASE_URL="postgresql://user:password@localhost:5432/contracts_db"
+GEMINI_API_KEY="your-gemini-api-key"
+AI_BASE_URL="https://generativelanguage.googleapis.com/v1beta/openai"
+AI_MODEL="gemini-3.5-flash-lite"
 ```
 
-### 3. Run the Application
+### 3. Run Development Server
+```bash
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### 4. Run Automated Test Suite
+```bash
+npm test
+```
+Runs the automated test suite verifying:
+- Genuine quote substring matching and offset calculation.
+- Hallucination and paraphrasing rejection.
+- Scanned PDF zero-text detection.
+- Substantive contract version diffing.
+
+### 5. Production Build
 ```bash
 npm run build
 npm run start
 ```
-Open your browser at [http://localhost:3000](http://localhost:3000).
-
-### 4. Load Sample Contracts
-Click the **"Load Sample Contracts"** button in the top navigation bar to instantly populate:
-- `Enterprise_SaaS_Agreement.pdf` (Searchable multi-page PDF)
-- `Commercial_Agreement_v1.docx` (Base version DOCX)
-- `Commercial_Agreement_v2.docx` (Amended version with 10x liability cap)
-- `150_Page_Enterprise_Master_Agreement.pdf` (150-page large contract test)
-- `Scanned_Contract_No_Text.pdf` (Scanned PDF zero-text detection test)
-
-### 5. Automated Test Suite
-Run the verification and pipeline tests:
-```bash
-npx tsx scripts/test_verifier.ts
-npx tsx scripts/test_pipeline.ts
-```
 
 ---
 
-## Feature Completion Status
+## Cloud Deployment (Vercel)
 
-| Feature | Requirement | Status | Notes |
-|---|---|---|---|
-| PDF & DOCX Upload | Part A (1) | Finished | Filetype enforcement, progress stages |
-| Scanned PDF Rejection | Part A (1) | Finished | Rejects zero-text scanned PDFs with alert |
-| Document Library | Part A (1) | Finished | List, open, and delete documents |
-| Streaming Chat | Part A (2) | Finished | SSE streaming with Stop Generation control |
-| Per-Document Chat History | Part A (2) | Finished | Saved in DB, switch or create new chats |
-| Programmatic Quote Verification | Part A (3) | Finished | Normalized token & n-gram matcher |
-| Large Documents (150 pages) | Part A (4) | Finished | Parsed in <400ms, transparent coverage notice |
-| Citation Highlighting | Part B (5) | Finished | Auto-navigates, scrolls into view, pulses highlight |
-| Multi-Document Questions | Part B (6) | Finished | Comparative synthesis with source document badges |
-| Contract Comparison | Part B (7) | Finished | Clause diffs, High/Med/Low significance, AED 100k -> 1M |
-| Part C: Agentic Research | Part C (Opt 2) | Finished | Multi-round tool loop with live status and 5-round cap |
+Veritas is production-ready and configured for serverless deployment:
+- Live on Vercel: **[https://juriqa-assignment-aew5mc3jx-kalp-cgs-projects.vercel.app/](https://juriqa-assignment-aew5mc3jx-kalp-cgs-projects.vercel.app/)**
+- Environment Variables required on Vercel: `GEMINI_API_KEY`.
+
+---
+
+## Author
+
+**Kalp Patel**  
+- **Email**: [kalp.patel.codinggita@gmail.com](mailto:kalp.patel.codinggita@gmail.com)  
+- **GitHub**: [github.com/kalp-cg](https://github.com/kalp-cg)  
+- **LinkedIn**: [linkedin.com/in/kalppatel](https://linkedin.com/in/kalppatel)  
+- **WhatsApp**: +91 99788 79407  
 
 ---
 
 ## License
-MIT
+MIT License. Built with pride for the Juriqa Engineering Team.
