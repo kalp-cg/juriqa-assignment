@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
                 }
                 return { id: d.id, filename: d.filename, pages };
               });
-              const quotes = verifyAllQuotes(extractQuotesFromAnswer(partialText), parsedDocs);
+              const quotes = verifyAllQuotes(extractQuotesFromAnswer(partialText), parsedDocs, partialText);
 
               await db.saveMessage({
                 id: assistantMsgId,

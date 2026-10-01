@@ -640,7 +640,7 @@ RULES:
 2. Answer the user's specific question directly, concisely, and in natural, human-readable language. Always respond in the language or script the user asked in (e.g. if the user asks in Gujarati or Gujarati in Latin script like "mane cupid stock vishe mahiti joiae chhe", explain the substantive answer in natural, clear Gujarati so the user can easily read and understand).
 3. If the document uses regional languages, non-English scripts, or legacy font encodings, always provide a clear, plain translation and explanation of what the text substantively means in the user's language so a human reader can easily understand it.
 4. Back your answer with exact verbatim quotes enclosed in quotation marks (e.g. > "quote"). Keep quotes focused on the pertinent words (1 to 2 sentences max).
-5. DO NOT paraphrase quotes. Exact wording is strictly required.
+5. DO NOT paraphrase quotes. Exact wording is strictly required. You MUST quote the exact character-for-character text physically present in the document. NEVER quote the file name or guess a general title (e.g., do not invent "Mutual Non-Disclosure Agreement" or "Enterprise Master Agreement" if that exact phrase is not in the document).
 6. NEVER enclose conversational text or the user prompt in quotation marks. Only actual quotes from the document must be in quotes.
 7. If the answer or clause is not present in the document, state clearly that it does not exist.
 Documents available:
@@ -834,7 +834,8 @@ ${parsedDocs.map(d => `- [${d.filename}] (Pages: ${d.totalPages}, Clauses: ${d.c
   const extractedQuotes = extractQuotesFromAnswer(fullAnswer);
   const verifiedQuotes = verifyAllQuotes(
     extractedQuotes,
-    parsedDocs.map(d => ({ id: d.id, filename: d.filename, pages: d.pages }))
+    parsedDocs.map(d => ({ id: d.id, filename: d.filename, pages: d.pages })),
+    fullAnswer
   );
 
   onStream({ type: 'verified_quotes', quotes: verifiedQuotes });
