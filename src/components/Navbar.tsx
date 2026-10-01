@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { FileText, MessageSquare, Layers, GitCompare, Sparkles, ShieldCheck, Settings, Key, X, Check } from 'lucide-react';
+import { FileText, MessageSquare, Layers, GitCompare, Sparkles, ShieldCheck, Settings, Key, X, Check, Network, ExternalLink, Download } from 'lucide-react';
 
 interface NavbarProps {
   activeTab: 'library' | 'chat' | 'multi' | 'compare';
@@ -19,6 +19,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   isSeeding,
 }) => {
   const [showSettings, setShowSettings] = useState(false);
+  const [showArchitecture, setShowArchitecture] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [baseUrl, setBaseUrl] = useState('');
   const [model, setModel] = useState('');
@@ -145,6 +146,15 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Action / Seed / Settings Buttons */}
             <div className="flex items-center space-x-2">
               <button
+                onClick={() => setShowArchitecture(true)}
+                className="inline-flex items-center space-x-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-md shadow-xs transition-colors"
+                title="System Architecture & Flow Diagram (Excalidraw)"
+              >
+                <Network className="w-3.5 h-3.5 text-blue-600" />
+                <span>Architecture</span>
+              </button>
+
+              <button
                 onClick={() => setShowSettings(true)}
                 className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 rounded-md transition-colors"
                 title="AI Model & API Key Settings"
@@ -165,6 +175,63 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
       </header>
+
+      {/* Architecture Excalidraw Modal */}
+      {showArchitecture && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center space-x-2">
+                <Network className="w-5 h-5 text-blue-600" />
+                <h3 className="text-sm font-semibold text-slate-900">Veritas Legal AI — Architecture Diagram</h3>
+              </div>
+              <button
+                onClick={() => setShowArchitecture(false)}
+                className="text-slate-400 hover:text-slate-700 p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              We have generated a full-featured <strong>Excalidraw System Flow & Architecture Diagram</strong> covering all 5 architectural tiers:
+            </p>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-[11px] text-slate-700 space-y-1 font-mono">
+              <div>• Tier 1: Next.js 14 App Router, Streaming Chat & Pulsing Viewer</div>
+              <div>• Tier 2: Ingestion, OCR Zero-Text Guard & Glyph Deconstruction</div>
+              <div>• Tier 3: Autonomous ReAct Research Loop (Option 2)</div>
+              <div>• Tier 4: Dual-Engine LLM (Gemini 3.5 + Ollama + Offline Synthesizer)</div>
+              <div>• Tier 5: Zero-Trust Deterministic Quote Verifier & Substantive Diff</div>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <div className="flex items-center space-x-3">
+                <a
+                  href="/veritas_architecture_system_flow.excalidraw"
+                  download="veritas_architecture_system_flow.excalidraw"
+                  className="flex-1 inline-flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download .excalidraw</span>
+                </a>
+                <a
+                  href="https://excalidraw.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 inline-flex items-center justify-center space-x-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>Open Excalidraw.com</span>
+                </a>
+              </div>
+              <p className="text-[11px] text-slate-500 text-center">
+                To view or edit: Download the file above, then drag & drop it directly onto <strong>excalidraw.com</strong>.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* AI Provider Settings Modal */}
       {showSettings && (
