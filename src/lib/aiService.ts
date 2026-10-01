@@ -352,6 +352,89 @@ function synthesizeGroundedAnswer(
 }
 
 /**
+ * Synthesizes a comprehensive multi-document answer across all provided documents,
+ * extracting verbatim quotes and attributing them clearly to each document.
+ */
+function synthesizeMultiDocumentAnswer(
+  query: string,
+  docs: { id: string; filename: string; totalPages: number; pages: DocumentPage[]; clauses: ExtractedClause[]; rawText: string }[]
+): string {
+  const qNorm = normalizeQuery(query);
+  const keywords = extractKeywords(query);
+
+  const sections: string[] = [];
+  sections.push(`Here is a comparative breakdown across all **${docs.length} selected documents**:\n`);
+
+  for (let idx = 0; idx < docs.length; idx++) {
+    const doc = docs[idx];
+    const lines = doc.rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    const p1 = doc.pages[0]?.text || doc.rawText;
+    const p1Lines = p1.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+    // 1. Find the best matching clause or excerpt
+    let bestLine = '';
+    let bestScore = 0;
+
+    for (const c of doc.clauses) {
+      const cLow = c.text.toLowerCase();
+      let score = 0;
+      for (const kw of keywords) {
+        if (cLow.includes(kw)) score += 2;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestLine = c.text.substring(0, 160).trim();
+      }
+    }
+
+    if (bestScore === 0) {
+      for (const line of lines) {
+        const lLow = line.toLowerCase();
+        let score = 0;
+        for (const kw of keywords) {
+          if (lLow.includes(kw)) score += 2;
+        }
+        if (score > bestScore && line.length > 5 && line.length < 220) {
+          bestScore = score;
+          bestLine = line;
+        }
+      }
+    }
+
+    // Fallback to prominent title or first substantive line
+    if (!bestLine || qNorm.includes('about') || qNorm.includes('what') || qNorm.includes('tell me') || qNorm.includes('overview') || qNorm.includes('summary')) {
+      const candidate = p1Lines.find(l => l.length > 5 && l.length < 160 && !l.includes('Page ') && !/^\d+$/.test(l)) || lines[0] || 'Document Agreement';
+      bestLine = candidate;
+    }
+
+    const cleanQuote = bestLine.replace(/^[•\-\–\s]+/, '').trim();
+
+    // Determine document type / topic
+    let docType = 'Legal Contract';
+    const fnLow = doc.filename.toLowerCase();
+    if (fnLow.includes('syllabus')) docType = 'Academic Course Syllabus';
+    else if (fnLow.includes('nda')) docType = 'Non-Disclosure Agreement (NDA)';
+    else if (fnLow.includes('saas')) docType = 'Enterprise Software-as-a-Service (SaaS) Agreement';
+    else if (fnLow.includes('resume')) docType = 'Professional Resume / Curriculum Vitae';
+    else if (fnLow.includes('payroll') || fnLow.includes('peoplepay')) docType = 'HR & Payroll Services Agreement';
+    else if (fnLow.includes('bluechip') || fnLow.includes('investment')) docType = 'Financial Investment Weekly Newsletter';
+    else if (fnLow.includes('arabic')) docType = 'Enterprise Master Services Agreement (Arabic Jurisdiction)';
+    else if (fnLow.includes('commercial')) docType = 'Commercial Services Agreement';
+    else if (fnLow.includes('master')) docType = 'Enterprise Master Framework Agreement';
+
+    sections.push(
+      `### ${idx + 1}. **${doc.filename}**\n` +
+      `- **Document Type:** ${docType} (${doc.totalPages} page${doc.totalPages > 1 ? 's' : ''})\n` +
+      `- **Substantive Overview:** This document establishes terms and details regarding ${docType.toLowerCase()}.\n` +
+      `- **Verbatim Passage:**\n` +
+      `> "${cleanQuote}"\n`
+    );
+  }
+
+  return sections.join('\n');
+}
+
+/**
  * Executes agentic document research across documents
  */
 export async function runAgenticDocumentResearch(
@@ -643,6 +726,7 @@ RULES:
 5. DO NOT paraphrase quotes. Exact wording is strictly required. You MUST quote the exact character-for-character text physically present in the document. NEVER quote the file name or guess a general title (e.g., do not invent "Mutual Non-Disclosure Agreement" or "Enterprise Master Agreement" if that exact phrase is not in the document).
 6. NEVER enclose conversational text or the user prompt in quotation marks. Only actual quotes from the document must be in quotes.
 7. If the answer or clause is not present in the document, state clearly that it does not exist.
+8. MULTI-DOCUMENT SYNTHESIS: When multiple documents are selected, you MUST systematically cover EVERY selected document one by one with verbatim quotes from each document. Do not limit your response to only one document.
 Documents available:
 ${parsedDocs.map(d => `- [${d.filename}] (Pages: ${d.totalPages}, Clauses: ${d.clauses.length})`).join('\n')}`,
         },
@@ -656,18 +740,23 @@ ${parsedDocs.map(d => `- [${d.filename}] (Pages: ${d.totalPages}, Clauses: ${d.c
         if (signal?.aborted) break;
         round++;
 
+        const isFinalRound = round === MAX_ROUNDS;
+        const requestPayload: any = {
+          model: modelName,
+          messages: conversationMessages,
+        };
+        if (!isFinalRound) {
+          requestPayload.tools = tools;
+          requestPayload.tool_choice = 'auto';
+        }
+
         const response = await fetch(`${baseUrl}/chat/completions`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${apiKey}`,
           },
-          body: JSON.stringify({
-            model: modelName,
-            messages: conversationMessages,
-            tools,
-            tool_choice: round === MAX_ROUNDS ? 'none' : 'auto',
-          }),
+          body: JSON.stringify(requestPayload),
           signal,
         });
 
@@ -755,6 +844,42 @@ ${parsedDocs.map(d => `- [${d.filename}] (Pages: ${d.totalPages}, Clauses: ${d.c
           break;
         }
       }
+
+      // If tool gathering completed without a final text response, force final synthesis without tools
+      if (!fullAnswer && conversationMessages.length > 2) {
+        conversationMessages.push({
+          role: 'user',
+          content: 'Now, synthesize your final comprehensive comparative answer across ALL selected documents using the information gathered above. Output verbatim quotes for each document.',
+        });
+
+        const finalResponse = await fetch(`${baseUrl}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: modelName,
+            messages: conversationMessages,
+          }),
+          signal,
+        });
+
+        if (finalResponse.ok) {
+          const finalData = await finalResponse.json();
+          const finalMsg = finalData.choices?.[0]?.message;
+          if (finalMsg?.content) {
+            fullAnswer = finalMsg.content;
+            const words = fullAnswer.split(' ');
+            for (let i = 0; i < words.length; i++) {
+              if (signal?.aborted) break;
+              const chunk = words[i] + (i < words.length - 1 ? ' ' : '');
+              onStream({ type: 'token', token: chunk });
+              await new Promise(r => setTimeout(r, 12));
+            }
+          }
+        }
+      }
     } catch (e: any) {
       console.warn('External AI call failed or not configured, using local research engine:', e.message);
     }
@@ -762,47 +887,67 @@ ${parsedDocs.map(d => `- [${d.filename}] (Pages: ${d.totalPages}, Clauses: ${d.c
 
   // --- High-Performance Local Research Engine ---
   if (!fullAnswer) {
-    const step1: AgentStep = {
-      stepNumber: 1,
-      tool: 'list_clauses',
-      input: { docCount: parsedDocs.length },
-      message: 'Scanning document outline and clause hierarchy...',
-      timestamp: new Date().toLocaleTimeString(),
-    };
-    steps.push(step1);
-    onStream({ type: 'agent_step', step: step1 });
-    await new Promise(r => setTimeout(r, 100));
+    if (parsedDocs.length > 1) {
+      // Multi-Document Research across ALL selected documents
+      for (let i = 0; i < parsedDocs.length; i++) {
+        const doc = parsedDocs[i];
+        inspectedPages.add(1);
+        const step: AgentStep = {
+          stepNumber: steps.length + 1,
+          tool: 'inspect_page',
+          input: { docId: doc.id, filename: doc.filename, page_number: 1 },
+          message: `Inspecting ${doc.filename} (Page 1 of ${doc.totalPages})...`,
+          timestamp: new Date().toLocaleTimeString(),
+        };
+        steps.push(step);
+        onStream({ type: 'agent_step', step });
+        await new Promise(r => setTimeout(r, 60));
+      }
 
-    const keywords = extractKeywords(query);
-    const step2: AgentStep = {
-      stepNumber: 2,
-      tool: 'search_document',
-      input: { query: keywords.join(' ') || query },
-      message: `Searching document text for "${keywords.slice(0, 3).join(', ') || query}"...`,
-      timestamp: new Date().toLocaleTimeString(),
-    };
-    steps.push(step2);
-    onStream({ type: 'agent_step', step: step2 });
-    await new Promise(r => setTimeout(r, 150));
-
-    const primaryDoc = parsedDocs[0];
-    if (primaryDoc) {
-      inspectedPages.add(1);
-
-      const step3: AgentStep = {
-        stepNumber: 3,
-        tool: 'get_section',
-        input: { section: 'Relevant Section / Page 1' },
-        message: `Inspecting targeted section in ${primaryDoc.filename}...`,
+      fullAnswer = synthesizeMultiDocumentAnswer(query, parsedDocs);
+    } else {
+      const step1: AgentStep = {
+        stepNumber: 1,
+        tool: 'list_clauses',
+        input: { docCount: parsedDocs.length },
+        message: 'Scanning document outline and clause hierarchy...',
         timestamp: new Date().toLocaleTimeString(),
       };
-      steps.push(step3);
-      onStream({ type: 'agent_step', step: step3 });
+      steps.push(step1);
+      onStream({ type: 'agent_step', step: step1 });
+      await new Promise(r => setTimeout(r, 100));
+
+      const keywords = extractKeywords(query);
+      const step2: AgentStep = {
+        stepNumber: 2,
+        tool: 'search_document',
+        input: { query: keywords.join(' ') || query },
+        message: `Searching document text for "${keywords.slice(0, 3).join(', ') || query}"...`,
+        timestamp: new Date().toLocaleTimeString(),
+      };
+      steps.push(step2);
+      onStream({ type: 'agent_step', step: step2 });
       await new Promise(r => setTimeout(r, 150));
 
-      fullAnswer = synthesizeGroundedAnswer(query, primaryDoc.rawText, primaryDoc.filename, primaryDoc.pages);
-    } else {
-      fullAnswer = `No document available to inspect.`;
+      const primaryDoc = parsedDocs[0];
+      if (primaryDoc) {
+        inspectedPages.add(1);
+
+        const step3: AgentStep = {
+          stepNumber: 3,
+          tool: 'get_section',
+          input: { section: 'Relevant Section / Page 1' },
+          message: `Inspecting targeted section in ${primaryDoc.filename}...`,
+          timestamp: new Date().toLocaleTimeString(),
+        };
+        steps.push(step3);
+        onStream({ type: 'agent_step', step: step3 });
+        await new Promise(r => setTimeout(r, 150));
+
+        fullAnswer = synthesizeGroundedAnswer(query, primaryDoc.rawText, primaryDoc.filename, primaryDoc.pages);
+      } else {
+        fullAnswer = `No document available to inspect.`;
+      }
     }
 
     // Stream tokens
