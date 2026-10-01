@@ -28,6 +28,8 @@ export default function Home() {
   const [isSeeding, setIsSeeding] = useState<boolean>(false);
   const [notification, setNotification] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
+  const [isLoadingDocDetails, setIsLoadingDocDetails] = useState<boolean>(false);
+
   // Load document list
   const fetchDocuments = async () => {
     try {
@@ -56,22 +58,42 @@ export default function Home() {
   useEffect(() => {
     if (!activeDocId) {
       setActiveDocData(null);
+      setIsLoadingDocDetails(false);
       return;
     }
 
+    // Immediately clear stale document data and show loading spinner
+    setActiveDocData(null);
+    setIsLoadingDocDetails(true);
+
+    let isCurrent = true;
     const fetchDocDetails = async () => {
       try {
         const res = await fetch(`/api/documents/${activeDocId}`);
         const data = await res.json();
-        if (data.success && data.document) {
-          setActiveDocData(data.document);
+        if (isCurrent) {
+          if (data.success && data.document) {
+            setActiveDocData(data.document);
+          } else {
+            console.warn('Could not load document details:', data.error);
+          }
         }
       } catch (err) {
-        console.error('Failed to load active document details:', err);
+        if (isCurrent) {
+          console.error('Failed to load active document details:', err);
+        }
+      } finally {
+        if (isCurrent) {
+          setIsLoadingDocDetails(false);
+        }
       }
     };
 
     fetchDocDetails();
+
+    return () => {
+      isCurrent = false;
+    };
   }, [activeDocId]);
 
   const handleOpenDocument = (docId: string) => {
@@ -204,7 +226,9 @@ export default function Home() {
                 <select
                   value={activeDocId || ''}
                   onChange={e => {
-                    setActiveDocId(e.target.value);
+                    const nextId = e.target.value;
+                    setActiveDocId(nextId);
+                    setActiveDocData(null);
                     setActiveCitation(null);
                   }}
                   className="text-xs bg-slate-50 border border-slate-200 rounded px-2.5 py-1 text-slate-800 font-medium focus:outline-hidden"
@@ -219,11 +243,16 @@ export default function Home() {
                 </select>
               </div>
 
-              {activeDocData && (
+              {isLoadingDocDetails ? (
+                <div className="text-[11px] text-blue-600 font-mono hidden sm:flex items-center space-x-1.5">
+                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-ping"></div>
+                  <span>Loading contract pages...</span>
+                </div>
+              ) : activeDocData ? (
                 <div className="text-[11px] text-slate-500 font-mono hidden sm:block">
                   {activeDocData.total_pages} {activeDocData.total_pages === 1 ? 'Page' : 'Pages'} • {activeDocData.total_words?.toLocaleString()} Words • {activeDocData.clauses?.length || 0} Clauses
                 </div>
-              )}
+              ) : null}
             </div>
 
             {/* Split Grid */}
@@ -234,6 +263,7 @@ export default function Home() {
                   document={activeDocData}
                   activeCitation={activeCitation}
                   onClearCitation={() => setActiveCitation(null)}
+                  isLoading={isLoadingDocDetails}
                 />
               </div>
 
@@ -242,7 +272,7 @@ export default function Home() {
                 {activeDocId ? (
                   <ChatInterface
                     documentId={activeDocId}
-                    documentTitle={activeDocData?.filename || 'Document'}
+                    documentTitle={activeDocData?.filename || documents.find(d => d.id === activeDocId)?.filename || 'Contract'}
                     onSelectCitation={handleSelectCitation}
                   />
                 ) : (

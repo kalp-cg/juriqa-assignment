@@ -11,6 +11,7 @@ import {
   Eye,
   CheckCircle,
   Maximize2,
+  Loader2,
 } from 'lucide-react';
 import { DocumentPage } from '@/lib/quoteVerifier';
 import { ExtractedClause } from '@/lib/documentProcessor';
@@ -33,12 +34,14 @@ interface DocumentViewerProps {
     endOffset?: number;
   } | null;
   onClearCitation?: () => void;
+  isLoading?: boolean;
 }
 
 export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   document,
   activeCitation,
   onClearCitation,
+  isLoading = false,
 }) => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -57,6 +60,18 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
       }, 100);
     }
   }, [activeCitation, document]);
+
+  if (isLoading) {
+    return (
+      <div className="h-full flex items-center justify-center p-8 bg-slate-50 border border-slate-200 rounded-xl text-center">
+        <div className="max-w-sm flex flex-col items-center">
+          <Loader2 className="w-8 h-8 text-slate-400 animate-spin mb-3" />
+          <h4 className="text-sm font-semibold text-slate-700">Loading document pages...</h4>
+          <p className="text-xs text-slate-500 mt-1">Extracting page layout and indexing clauses for verification.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!document) {
     return (
