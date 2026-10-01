@@ -17,8 +17,16 @@ export async function POST() {
       'Enterprise_SaaS_Agreement.pdf',
       'Commercial_Agreement_v1.docx',
       'Commercial_Agreement_v2.docx',
-      '150_Page_Enterprise_Master_Agreement.pdf',
       'Arabic_Enterprise_Master_Agreement_15_Pages.docx',
+      'Accord_de_Confidentialite_Commercial_France.docx',
+      'Software_Lizenzvertrag_Deutschland.pdf',
+      'Acuerdo_Marco_de_Servicios_Espanol.pdf',
+      'Executive_Employment_Agreement.docx',
+      'Real_Estate_Commercial_Lease_Agreement.docx',
+      'Cross_Border_Data_Processing_Agreement_GDPR.docx',
+      'Employee_NDA_Ambiguity_Labs.pdf',
+      'Joint_Venture_Technology_Partnership.docx',
+      '150_Page_Enterprise_Master_Agreement.pdf',
       'Scanned_Contract_No_Text.pdf',
     ];
 
