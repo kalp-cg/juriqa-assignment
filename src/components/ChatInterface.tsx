@@ -19,6 +19,9 @@ import {
   Trash2,
   Clock,
   Check,
+  Mic,
+  MicOff,
+  Download,
 } from 'lucide-react';
 import { AgentStep, DocumentCoverage } from '@/lib/aiService';
 import { VerifiedQuote } from '@/lib/quoteVerifier';
@@ -59,6 +62,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [activeSteps, setActiveSteps] = useState<AgentStep[]>([]);
   const [expandedStepsMap, setExpandedStepsMap] = useState<Record<string, boolean>>({});
+  const [isListening, setIsListening] = useState<boolean>(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -146,6 +150,69 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     } catch (e) {
       console.error('Failed to delete chat:', e);
     }
+  };
+
+  // Bonus Extra: Voice input using browser speech recognition
+  const handleToggleVoice = () => {
+    if (typeof window === 'undefined') return;
+    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRec) {
+      alert('Voice input is not supported in this browser. Please use Chrome or Edge.');
+      return;
+    }
+
+    if (isListening) {
+      setIsListening(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRec();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => setIsListening(true);
+      recognition.onend = () => setIsListening(false);
+      recognition.onerror = () => setIsListening(false);
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInputPrompt(prev => (prev ? prev + ' ' + transcript : transcript));
+      };
+
+      recognition.start();
+    } catch {
+      setIsListening(false);
+    }
+  };
+
+  // Bonus Extra: Export answer with source-attributed verified quotes as formatted Markdown document
+  const handleExportMessage = (msg: ChatMessage) => {
+    let doc = `# Veritas Legal AI - Contract Analysis Report\n\n`;
+    doc += `**Contract:** ${documentTitle}\n`;
+    doc += `**Date:** ${new Date().toLocaleString()}\n`;
+    if (msg.coverage?.coverageNotice) {
+      doc += `**Document Coverage:** ${msg.coverage.coverageNotice}\n`;
+    }
+    doc += `\n---\n\n## Substantive Analysis\n\n${msg.content}\n\n`;
+
+    if (msg.quotes && msg.quotes.length > 0) {
+      doc += `## Source Document Citations (${msg.quotes.length})\n\n`;
+      msg.quotes.forEach((q, idx) => {
+        doc += `### Citation ${idx + 1}: ${q.verified ? 'VERIFIED' : 'UNVERIFIED'}\n`;
+        if (q.pageNumber) doc += `- **Page:** ${q.pageNumber}\n`;
+        if (q.documentName) doc += `- **Document:** ${q.documentName}\n`;
+        doc += `> "${q.matchedText || q.quote}"\n\n`;
+      });
+    }
+
+    const blob = new Blob([doc], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Veritas_Analysis_${documentTitle.replace(/[^a-zA-Z0-9]/g, '_')}.md`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleSendMessage = async (e?: React.FormEvent) => {
@@ -409,6 +476,19 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     : 'bg-slate-100 text-slate-900 rounded-bl-xs border border-slate-200/70'
                 }`}
               >
+                {!isUser && (
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-200/60 text-[10px] text-slate-500">
+                    <span className="font-semibold uppercase tracking-wider text-slate-700">Analysis</span>
+                    <button
+                      onClick={() => handleExportMessage(msg)}
+                      className="inline-flex items-center space-x-1 hover:text-slate-900 cursor-pointer transition-colors"
+                      title="Export report with citations"
+                    >
+                      <Download className="w-3 h-3" />
+                      <span>Export Report</span>
+                    </button>
+                  </div>
+                )}
                 <div className="whitespace-pre-wrap">{msg.content}</div>
 
                 {/* Coverage Transparency Metric (Requirement 4) */}
@@ -520,6 +600,20 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             disabled={isGenerating}
             className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-slate-900 focus:outline-hidden focus:border-slate-400 focus:bg-white transition-all disabled:opacity-60"
           />
+
+          <button
+            type="button"
+            onClick={handleToggleVoice}
+            disabled={isGenerating}
+            className={`p-2 rounded-md transition-colors ${
+              isListening
+                ? 'bg-rose-600 text-white animate-pulse'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            } disabled:opacity-40`}
+            title={isListening ? 'Listening... click to stop' : 'Dictate question via voice'}
+          >
+            {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+          </button>
 
           {isGenerating ? (
             <button
