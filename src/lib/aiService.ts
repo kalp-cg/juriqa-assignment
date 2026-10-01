@@ -500,24 +500,35 @@ export async function runAgenticDocumentResearch(
     };
   };
 
-  // --- API Configuration (Custom or Environment) ---
+  // --- API Configuration (Custom, Gemini, Ollama, or Environment) ---
   const apiKey =
     customApiKey ||
+    process.env.GEMINI_API_KEY ||
     process.env.OPENAI_API_KEY ||
     process.env.OPENROUTER_API_KEY ||
-    process.env.GEMINI_API_KEY ||
     process.env.ANTHROPIC_API_KEY ||
-    process.env.GROQ_API_KEY;
+    process.env.GROQ_API_KEY ||
+    (process.env.AI_BASE_URL?.includes('11434') || customBaseUrl?.includes('11434') ? 'ollama' : undefined);
 
-  const baseUrl =
-    customBaseUrl ||
-    process.env.AI_BASE_URL ||
-    (process.env.OPENROUTER_API_KEY ? 'https://openrouter.ai/api/v1' : 'https://api.openai.com/v1');
+  let defaultBaseUrl = 'https://api.openai.com/v1';
+  let defaultModel = 'gpt-4o-mini';
 
-  const modelName =
-    customModel ||
-    process.env.AI_MODEL ||
-    (process.env.OPENROUTER_API_KEY ? 'openai/gpt-4o-mini' : 'gpt-4o-mini');
+  if (process.env.GEMINI_API_KEY || (apiKey && (apiKey.startsWith('AQ.') || apiKey.startsWith('AIza')))) {
+    defaultBaseUrl = 'https://generativelanguage.googleapis.com/v1beta/openai';
+    defaultModel = 'gemini-3.5-flash-lite';
+  } else if (process.env.OPENROUTER_API_KEY) {
+    defaultBaseUrl = 'https://openrouter.ai/api/v1';
+    defaultModel = 'openai/gpt-4o-mini';
+  } else if (process.env.GROQ_API_KEY) {
+    defaultBaseUrl = 'https://api.groq.com/openai/v1';
+    defaultModel = 'llama-3.1-8b-instant';
+  } else if (process.env.AI_BASE_URL?.includes('11434') || customBaseUrl?.includes('11434')) {
+    defaultBaseUrl = 'http://localhost:11434/v1';
+    defaultModel = 'qwen2.5:1.5b';
+  }
+
+  const baseUrl = customBaseUrl || process.env.AI_BASE_URL || defaultBaseUrl;
+  const modelName = customModel || process.env.AI_MODEL || defaultModel;
 
   let fullAnswer = '';
 
