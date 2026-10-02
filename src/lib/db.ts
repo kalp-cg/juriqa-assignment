@@ -44,15 +44,62 @@ export interface ComparisonRecord {
   created_at: string;
 }
 
+// Global cache for MongoDB connection across serverless invocations
+declare global {
+  var _mongoClientPromise: Promise<any> | undefined;
+}
+
 class DatabaseManager {
   private db: any = null;
   private isPostgres = false;
+  private isMongo = false;
   private pgPool: any = null;
+  private mongoDb: any = null;
+  private mongoInitPromise: Promise<void> | null = null;
   private initialized = false;
 
   private ensureInit() {
     if (this.initialized) return;
 
+    // 1. Check for MongoDB Atlas URI (Highest priority for serverless cloud persistence)
+    const mongoUrl = process.env.MONGODB_URI || (process.env.DATABASE_URL?.startsWith('mongodb') ? process.env.DATABASE_URL : null);
+    if (mongoUrl) {
+      this.isMongo = true;
+      if (!this.mongoInitPromise) {
+        this.mongoInitPromise = (async () => {
+          try {
+            const { MongoClient } = require('mongodb');
+            if (!global._mongoClientPromise) {
+              const client = new MongoClient(mongoUrl, {
+                maxPoolSize: 10,
+                serverSelectionTimeoutMS: 5000,
+              });
+              global._mongoClientPromise = client.connect();
+            }
+            const client = await global._mongoClientPromise;
+            let dbName = 'veritas_legal_ai';
+            try {
+              const parsed = new URL(mongoUrl);
+              const pathPart = parsed.pathname.replace(/^\//, '');
+              if (pathPart) dbName = pathPart;
+            } catch {}
+            this.mongoDb = client.db(dbName);
+            // Ensure essential indexes in background
+            this.mongoDb.collection('documents').createIndex({ id: 1 }, { unique: true }).catch(() => {});
+            this.mongoDb.collection('documents').createIndex({ created_at: -1 }).catch(() => {});
+            this.mongoDb.collection('chats').createIndex({ document_id: 1, updated_at: -1 }).catch(() => {});
+            this.mongoDb.collection('messages').createIndex({ chat_id: 1, created_at: 1 }).catch(() => {});
+            this.initialized = true;
+          } catch (err) {
+            console.error('Failed to initialize MongoDB Atlas, falling back:', err);
+            this.isMongo = false;
+          }
+        })();
+      }
+      return;
+    }
+
+    // 2. Check for PostgreSQL connection
     const dbUrl = process.env.DATABASE_URL;
     if (dbUrl && (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://'))) {
       try {
@@ -67,7 +114,7 @@ class DatabaseManager {
       }
     }
 
-    // Local SQLite with WAL mode & busy timeout
+    // 3. Local SQLite fallback (with WAL mode & busy timeout)
     const isServerless = !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT);
     const dataDir = isServerless ? '/tmp' : path.join(process.cwd(), 'data');
     if (!fs.existsSync(dataDir)) {
@@ -88,7 +135,6 @@ class DatabaseManager {
     try {
       const { DatabaseSync } = require('node:sqlite');
       this.db = new DatabaseSync(dbPath);
-      // Concurrency settings: WAL mode allows concurrent workers
       try {
         this.db.exec('PRAGMA journal_mode = WAL;');
         this.db.exec('PRAGMA busy_timeout = 5000;');
@@ -98,6 +144,13 @@ class DatabaseManager {
       this.initialized = true;
     } catch (e) {
       console.error('Failed to initialize node:sqlite:', e);
+    }
+  }
+
+  private async ensureReady() {
+    this.ensureInit();
+    if (this.mongoInitPromise) {
+      await this.mongoInitPromise;
     }
   }
 
@@ -197,7 +250,17 @@ class DatabaseManager {
 
   // --- Document Operations ---
   public async saveDocument(doc: DocumentRecord): Promise<void> {
-    this.ensureInit();
+    await this.ensureReady();
+
+    if (this.isMongo && this.mongoDb) {
+      await this.mongoDb.collection('documents').updateOne(
+        { id: doc.id },
+        { $set: { ...doc, _id: doc.id } },
+        { upsert: true }
+      );
+      return;
+    }
+
     if (this.isPostgres) {
       await this.pgPool.query(
         `INSERT INTO documents (id, filename, filetype, filesize, total_pages, total_words, raw_text, pages_json, clauses_json, created_at, status, error_message)
@@ -223,7 +286,15 @@ class DatabaseManager {
   }
 
   public async getDocument(id: string): Promise<DocumentRecord | null> {
-    this.ensureInit();
+    await this.ensureReady();
+
+    if (this.isMongo && this.mongoDb) {
+      const doc = await this.mongoDb.collection('documents').findOne({ id });
+      if (!doc) return null;
+      const { _id, ...rest } = doc;
+      return rest as DocumentRecord;
+    }
+
     if (this.isPostgres) {
       const res = await this.pgPool.query('SELECT * FROM documents WHERE id = $1', [id]);
       return res.rows[0] || null;
@@ -234,7 +305,16 @@ class DatabaseManager {
   }
 
   public async listDocuments(): Promise<Omit<DocumentRecord, 'raw_text' | 'pages_json'>[]> {
-    this.ensureInit();
+    await this.ensureReady();
+
+    if (this.isMongo && this.mongoDb) {
+      const docs = await this.mongoDb.collection('documents')
+        .find({}, { projection: { raw_text: 0, pages_json: 0 } })
+        .sort({ created_at: -1 })
+        .toArray();
+      return docs.map(({ _id, ...rest }: any) => rest);
+    }
+
     if (this.isPostgres) {
       const res = await this.pgPool.query(
         'SELECT id, filename, filetype, filesize, total_pages, total_words, clauses_json, created_at, status, error_message FROM documents ORDER BY created_at DESC'
@@ -248,7 +328,14 @@ class DatabaseManager {
   }
 
   public async deleteDocument(id: string): Promise<void> {
-    this.ensureInit();
+    await this.ensureReady();
+
+    if (this.isMongo && this.mongoDb) {
+      await this.mongoDb.collection('documents').deleteOne({ id });
+      await this.mongoDb.collection('chats').deleteMany({ document_id: id });
+      return;
+    }
+
     if (this.isPostgres) {
       await this.pgPool.query('DELETE FROM documents WHERE id = $1', [id]);
       await this.pgPool.query('DELETE FROM chats WHERE document_id = $1', [id]);
@@ -260,7 +347,26 @@ class DatabaseManager {
 
   // --- Chat & Messages ---
   public async getOrCreateChat(documentId: string, title = 'New Conversation'): Promise<ChatRecord> {
-    this.ensureInit();
+    await this.ensureReady();
+
+    if (this.isMongo && this.mongoDb) {
+      const chatsCol = this.mongoDb.collection('chats');
+      const existing = await chatsCol.findOne({ document_id: documentId }, { sort: { updated_at: -1 } });
+      if (existing) {
+        const { _id, ...rest } = existing;
+        return rest as ChatRecord;
+      }
+      const newChat: ChatRecord = {
+        id: 'chat_' + Math.random().toString(36).substring(2, 11),
+        document_id: documentId,
+        title,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      await chatsCol.insertOne({ ...newChat, _id: newChat.id });
+      return newChat;
+    }
+
     if (this.isPostgres) {
       const res = await this.pgPool.query('SELECT * FROM chats WHERE document_id = $1 ORDER BY updated_at DESC LIMIT 1', [documentId]);
       if (res.rows[0]) return res.rows[0];
@@ -300,7 +406,15 @@ class DatabaseManager {
   }
 
   public async getChat(chatId: string): Promise<ChatRecord | null> {
-    this.ensureInit();
+    await this.ensureReady();
+
+    if (this.isMongo && this.mongoDb) {
+      const chat = await this.mongoDb.collection('chats').findOne({ id: chatId });
+      if (!chat) return null;
+      const { _id, ...rest } = chat;
+      return rest as ChatRecord;
+    }
+
     if (this.isPostgres) {
       const res = await this.pgPool.query('SELECT * FROM chats WHERE id = $1', [chatId]);
       return res.rows[0] || null;
@@ -310,7 +424,16 @@ class DatabaseManager {
   }
 
   public async listChatsForDoc(documentId: string): Promise<ChatRecord[]> {
-    this.ensureInit();
+    await this.ensureReady();
+
+    if (this.isMongo && this.mongoDb) {
+      const chats = await this.mongoDb.collection('chats')
+        .find({ document_id: documentId })
+        .sort({ updated_at: -1 })
+        .toArray();
+      return chats.map(({ _id, ...rest }: any) => rest as ChatRecord);
+    }
+
     if (this.isPostgres) {
       const res = await this.pgPool.query('SELECT * FROM chats WHERE document_id = $1 ORDER BY updated_at DESC', [documentId]);
       return res.rows;
@@ -319,7 +442,21 @@ class DatabaseManager {
   }
 
   public async saveMessage(msg: MessageRecord): Promise<void> {
-    this.ensureInit();
+    await this.ensureReady();
+
+    if (this.isMongo && this.mongoDb) {
+      await this.mongoDb.collection('messages').updateOne(
+        { id: msg.id },
+        { $set: { ...msg, _id: msg.id } },
+        { upsert: true }
+      );
+      await this.mongoDb.collection('chats').updateOne(
+        { id: msg.chat_id },
+        { $set: { updated_at: new Date().toISOString() } }
+      );
+      return;
+    }
+
     if (this.isPostgres) {
       await this.pgPool.query(
         `INSERT INTO messages (id, chat_id, role, content, quotes_json, coverage_json, agent_steps_json, created_at)
@@ -341,7 +478,16 @@ class DatabaseManager {
   }
 
   public async getMessages(chatId: string): Promise<MessageRecord[]> {
-    this.ensureInit();
+    await this.ensureReady();
+
+    if (this.isMongo && this.mongoDb) {
+      const messages = await this.mongoDb.collection('messages')
+        .find({ chat_id: chatId })
+        .sort({ created_at: 1 })
+        .toArray();
+      return messages.map(({ _id, ...rest }: any) => rest as MessageRecord);
+    }
+
     if (this.isPostgres) {
       const res = await this.pgPool.query('SELECT * FROM messages WHERE chat_id = $1 ORDER BY created_at ASC', [chatId]);
       return res.rows;
@@ -350,7 +496,14 @@ class DatabaseManager {
   }
 
   public async deleteChat(chatId: string): Promise<void> {
-    this.ensureInit();
+    await this.ensureReady();
+
+    if (this.isMongo && this.mongoDb) {
+      await this.mongoDb.collection('messages').deleteMany({ chat_id: chatId });
+      await this.mongoDb.collection('chats').deleteOne({ id: chatId });
+      return;
+    }
+
     if (this.isPostgres) {
       await this.pgPool.query('DELETE FROM messages WHERE chat_id = $1', [chatId]);
       await this.pgPool.query('DELETE FROM chats WHERE id = $1', [chatId]);
@@ -362,7 +515,17 @@ class DatabaseManager {
 
   // --- Comparison Records ---
   public async saveComparison(comp: ComparisonRecord): Promise<void> {
-    this.ensureInit();
+    await this.ensureReady();
+
+    if (this.isMongo && this.mongoDb) {
+      await this.mongoDb.collection('comparisons').updateOne(
+        { id: comp.id },
+        { $set: { ...comp, _id: comp.id } },
+        { upsert: true }
+      );
+      return;
+    }
+
     if (this.isPostgres) {
       await this.pgPool.query(
         `INSERT INTO comparisons (id, doc_a_id, doc_b_id, summary, diffs_json, created_at)
@@ -379,7 +542,15 @@ class DatabaseManager {
   }
 
   public async getComparison(id: string): Promise<ComparisonRecord | null> {
-    this.ensureInit();
+    await this.ensureReady();
+
+    if (this.isMongo && this.mongoDb) {
+      const comp = await this.mongoDb.collection('comparisons').findOne({ id });
+      if (!comp) return null;
+      const { _id, ...rest } = comp;
+      return rest as ComparisonRecord;
+    }
+
     if (this.isPostgres) {
       const res = await this.pgPool.query('SELECT * FROM comparisons WHERE id = $1', [id]);
       return res.rows[0] || null;
