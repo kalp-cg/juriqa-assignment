@@ -5,6 +5,7 @@ import { db, DocumentRecord } from '@/lib/db';
 import { processPdf, processDocx } from '@/lib/documentProcessor';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export async function POST() {
   try {

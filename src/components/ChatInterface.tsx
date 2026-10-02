@@ -265,7 +265,22 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       });
 
       if (!response.ok || !response.body) {
-        throw new Error('Failed to connect to streaming research agent');
+        let errorMsg = `Server error (${response.status})`;
+        try {
+          const errData = await response.json();
+          if (errData?.error) errorMsg = errData.error;
+        } catch {
+          try {
+            const errText = await response.text();
+            if (errText) errorMsg = errText.substring(0, 300);
+          } catch {}
+        }
+        if (response.status === 404) {
+          errorMsg = `${errorMsg}. In serverless hosting, ephemeral instances can restart without a persistent database. Please re-select or reload the document from Document Library.`;
+        } else if (response.status === 504) {
+          errorMsg = `Analysis timed out (${response.status}). The document is extremely large (895+ pages). Please try a targeted question.`;
+        }
+        throw new Error(errorMsg);
       }
 
       const reader = response.body.getReader();

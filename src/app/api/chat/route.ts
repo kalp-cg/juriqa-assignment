@@ -4,6 +4,7 @@ import { runAgenticDocumentResearch, AgentStep, DocumentCoverage, StreamEvent } 
 import { extractQuotesFromAnswer, verifyAllQuotes, VerifiedQuote, DocumentPage } from '@/lib/quoteVerifier';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,7 +12,7 @@ export async function POST(req: NextRequest) {
     const { chatId, documentIds, message: userMessage, apiKey, baseUrl, model } = body;
 
     if (!userMessage || !chatId || !documentIds || documentIds.length === 0) {
-      return new Response(JSON.stringify({ error: 'Missing required parameters' }), {
+      return new Response(JSON.stringify({ error: 'Missing required parameters (chatId, documentIds, message)' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
@@ -27,7 +28,9 @@ export async function POST(req: NextRequest) {
     }
 
     if (docRecords.length === 0) {
-      return new Response(JSON.stringify({ error: 'No ready documents found for query' }), {
+      return new Response(JSON.stringify({ 
+        error: 'Contract not found or not ready in current database session. In serverless deployments (Vercel), stateless instances may restart if an external DATABASE_URL is not configured. Please reload or re-select the document.' 
+      }), {
         status: 404,
         headers: { 'Content-Type': 'application/json' },
       });

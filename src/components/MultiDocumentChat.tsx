@@ -120,7 +120,17 @@ export const MultiDocumentChat: React.FC<MultiDocumentChatProps> = ({
       });
 
       if (!response.ok || !response.body) {
-        throw new Error('Failed to run multi-document synthesis');
+        let errorMsg = `Server error (${response.status})`;
+        try {
+          const errData = await response.json();
+          if (errData?.error) errorMsg = errData.error;
+        } catch {
+          try {
+            const errText = await response.text();
+            if (errText) errorMsg = errText.substring(0, 300);
+          } catch {}
+        }
+        throw new Error(errorMsg);
       }
 
       const reader = response.body.getReader();

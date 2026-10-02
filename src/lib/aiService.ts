@@ -480,11 +480,23 @@ export async function runAgenticDocumentResearch(
   // --- Agent Tool Implementations ---
   const toolListClauses = (docId?: string) => {
     const targetDocs = docId ? parsedDocs.filter(d => d.id === docId) : parsedDocs;
-    return targetDocs.map(d => ({
-      documentId: d.id,
-      filename: d.filename,
-      clauses: d.clauses.map(c => ({ number: c.number, title: c.title, page: c.pageNumber })),
-    }));
+    return targetDocs.map(d => {
+      const all = d.clauses.map(c => ({ number: c.number, title: c.title, page: c.pageNumber }));
+      if (all.length > 60) {
+        return {
+          documentId: d.id,
+          filename: d.filename,
+          totalClauses: all.length,
+          note: `Document has ${all.length} clauses. Showing top 60 clauses. Use search_document or get_section to locate other specific topics.`,
+          clauses: all.slice(0, 60),
+        };
+      }
+      return {
+        documentId: d.id,
+        filename: d.filename,
+        clauses: all,
+      };
+    });
   };
 
   const toolSearchDocument = (searchQuery: string, docId?: string) => {
