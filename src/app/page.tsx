@@ -29,6 +29,7 @@ export default function Home() {
   const [notification, setNotification] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   const [isLoadingDocDetails, setIsLoadingDocDetails] = useState<boolean>(false);
+  const [docCache, setDocCache] = useState<Record<string, any>>({});
 
   // Load document list
   const fetchDocuments = async () => {
@@ -62,6 +63,13 @@ export default function Home() {
       return;
     }
 
+    // Check client-side document cache first
+    if (docCache[activeDocId]) {
+      setActiveDocData(docCache[activeDocId]);
+      setIsLoadingDocDetails(false);
+      return;
+    }
+
     // Immediately clear stale document data and show loading spinner
     setActiveDocData(null);
     setIsLoadingDocDetails(true);
@@ -74,6 +82,7 @@ export default function Home() {
         if (isCurrent) {
           if (data.success && data.document) {
             setActiveDocData(data.document);
+            setDocCache(prev => ({ ...prev, [activeDocId]: data.document }));
           } else {
             console.warn('Could not load document details:', data.error);
           }
@@ -94,10 +103,14 @@ export default function Home() {
     return () => {
       isCurrent = false;
     };
-  }, [activeDocId]);
+  }, [activeDocId, docCache]);
 
-  const handleOpenDocument = (docId: string) => {
+  const handleOpenDocument = (docId: string, initialData?: any) => {
     setActiveDocId(docId);
+    if (initialData && initialData.pages) {
+      setActiveDocData(initialData);
+      setDocCache(prev => ({ ...prev, [docId]: initialData }));
+    }
     setActiveCitation(null);
     setActiveTab('chat');
   };
@@ -220,40 +233,49 @@ export default function Home() {
         {activeTab === 'chat' && (
           <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-4 flex flex-col">
             {/* Top Bar for Switch Document */}
-            <div className="flex items-center justify-between mb-3 bg-white px-4 py-2 rounded-lg border border-slate-200">
-              <div className="flex items-center space-x-2">
-                <span className="text-xs font-semibold text-slate-700">Active Document:</span>
-                <select
-                  value={activeDocId || ''}
-                  onChange={e => {
-                    const nextId = e.target.value;
-                    setActiveDocId(nextId);
-                    setActiveDocData(null);
-                    setActiveCitation(null);
-                  }}
-                  className="text-xs bg-slate-50 border border-slate-200 rounded px-2.5 py-1 text-slate-800 font-medium focus:outline-hidden"
-                >
-                  {documents
-                    .filter(d => d.status === 'ready')
-                    .map(d => (
-                      <option key={d.id} value={d.id}>
-                        {d.filename} ({d.filetype.toUpperCase()})
-                      </option>
-                    ))}
-                </select>
-              </div>
+            {(() => {
+              const activeDoc = documents.find(d => d.id === activeDocId);
+              const displayPages = activeDocData?.total_pages || activeDoc?.total_pages || 0;
+              const displayWords = activeDocData?.total_words ?? activeDoc?.total_words;
+              const displayClauses = activeDocData?.clauses?.length;
 
-              {isLoadingDocDetails ? (
-                <div className="text-[11px] text-blue-600 font-mono hidden sm:flex items-center space-x-1.5">
-                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-ping"></div>
-                  <span>Loading contract pages...</span>
+              return (
+                <div className="flex items-center justify-between mb-3 bg-white px-4 py-2 rounded-lg border border-slate-200">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs font-semibold text-slate-700">Active Document:</span>
+                    <select
+                      value={activeDocId || ''}
+                      onChange={e => {
+                        const nextId = e.target.value;
+                        setActiveDocId(nextId);
+                        setActiveDocData(null);
+                        setActiveCitation(null);
+                      }}
+                      className="text-xs bg-slate-50 border border-slate-200 rounded px-2.5 py-1 text-slate-800 font-medium focus:outline-hidden"
+                    >
+                      {documents
+                        .filter(d => d.status === 'ready')
+                        .map(d => (
+                          <option key={d.id} value={d.id}>
+                            {d.filename} ({d.filetype.toUpperCase()})
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+
+                  {isLoadingDocDetails ? (
+                    <div className="text-[11px] text-blue-600 font-mono hidden sm:flex items-center space-x-1.5">
+                      <div className="w-2 h-2 rounded-full bg-blue-500 animate-ping"></div>
+                      <span>Loading contract pages...</span>
+                    </div>
+                  ) : displayPages > 0 ? (
+                    <div className="text-[11px] text-slate-500 font-mono hidden sm:block">
+                      {displayPages} {displayPages === 1 ? 'Page' : 'Pages'} • {displayWords ? displayWords.toLocaleString() : 0} Words{displayClauses !== undefined ? ` • ${displayClauses} Clauses` : ''}
+                    </div>
+                  ) : null}
                 </div>
-              ) : activeDocData ? (
-                <div className="text-[11px] text-slate-500 font-mono hidden sm:block">
-                  {activeDocData.total_pages} {activeDocData.total_pages === 1 ? 'Page' : 'Pages'} • {activeDocData.total_words?.toLocaleString()} Words • {activeDocData.clauses?.length || 0} Clauses
-                </div>
-              ) : null}
-            </div>
+              );
+            })()}
 
             {/* Split Grid */}
             <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-[640px] pb-6">
@@ -264,6 +286,21 @@ export default function Home() {
                   activeCitation={activeCitation}
                   onClearCitation={() => setActiveCitation(null)}
                   isLoading={isLoadingDocDetails}
+                  activeDocSummary={documents.find(d => d.id === activeDocId)}
+                  onRetry={() => {
+                    if (activeDocId) {
+                      setIsLoadingDocDetails(true);
+                      fetch(`/api/documents/${activeDocId}`)
+                        .then(r => r.json())
+                        .then(d => {
+                          if (d.success && d.document) {
+                            setActiveDocData(d.document);
+                            setDocCache(prev => ({ ...prev, [activeDocId]: d.document }));
+                          }
+                        })
+                        .finally(() => setIsLoadingDocDetails(false));
+                    }
+                  }}
                 />
               </div>
 

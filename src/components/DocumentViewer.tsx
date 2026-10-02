@@ -12,6 +12,7 @@ import {
   CheckCircle,
   Maximize2,
   Loader2,
+  RefreshCw,
 } from 'lucide-react';
 import { DocumentPage } from '@/lib/quoteVerifier';
 import { ExtractedClause } from '@/lib/documentProcessor';
@@ -35,6 +36,8 @@ interface DocumentViewerProps {
   } | null;
   onClearCitation?: () => void;
   isLoading?: boolean;
+  activeDocSummary?: any;
+  onRetry?: () => void;
 }
 
 export const DocumentViewer: React.FC<DocumentViewerProps> = ({
@@ -42,6 +45,8 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   activeCitation,
   onClearCitation,
   isLoading = false,
+  activeDocSummary,
+  onRetry,
 }) => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -74,6 +79,34 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   }
 
   if (!document) {
+    if (activeDocSummary) {
+      return (
+        <div className="h-full flex items-center justify-center p-8 bg-slate-50 border border-slate-200 rounded-xl text-center">
+          <div className="max-w-sm space-y-3">
+            <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-200/80 flex items-center justify-center mx-auto text-blue-600">
+              <FileText className="w-6 h-6" />
+            </div>
+            <h4 className="text-sm font-semibold text-slate-800">{activeDocSummary.filename}</h4>
+            <p className="text-xs text-slate-500 font-mono">
+              {activeDocSummary.total_pages} {activeDocSummary.total_pages === 1 ? 'Page' : 'Pages'} • {activeDocSummary.total_words?.toLocaleString()} Words
+            </p>
+            <p className="text-xs text-slate-400">
+              Contract record is active in session. If full page contents are syncing from the server, click below to load pages.
+            </p>
+            {onRetry && (
+              <button
+                onClick={onRetry}
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-md transition-colors shadow-xs"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Load Contract Pages</span>
+              </button>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="h-full flex items-center justify-center p-8 bg-slate-50 border border-slate-200 rounded-xl text-center">
         <div className="max-w-sm">

@@ -31,7 +31,7 @@ export interface DocumentSummary {
 
 interface DocumentLibraryProps {
   documents: DocumentSummary[];
-  onOpenDocument: (docId: string) => void;
+  onOpenDocument: (docId: string, initialData?: any) => void;
   onDeleteDocument: (docId: string) => void;
   onRefresh: () => void;
   onCompareWith: (docAId: string, docBId?: string) => void;
@@ -95,7 +95,7 @@ export const DocumentLibrary: React.FC<DocumentLibraryProps> = ({
         setUploadProgress('');
         onRefresh();
         if (data.document?.id) {
-          onOpenDocument(data.document.id);
+          onOpenDocument(data.document.id, data.document);
         }
       }, 500);
     } catch (err: any) {

@@ -84,6 +84,9 @@ export async function POST(req: NextRequest) {
           total_words: readyRecord.total_words,
           clauses_count: processed.clauses.length,
           status: 'ready',
+          pages: processed.pages,
+          clauses: processed.clauses,
+          raw_text: processed.rawText,
         },
       });
     } catch (procErr: any) {
