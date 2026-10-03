@@ -493,7 +493,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               >
                 {!isUser && (
                   <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-200/60 text-[10px] text-slate-500">
-                    <span className="font-semibold uppercase tracking-wider text-slate-700">Analysis</span>
+                    <span className="font-semibold uppercase tracking-wider text-slate-700">AI Synthesis & Reasoning</span>
                     <button
                       onClick={() => handleExportMessage(msg)}
                       className="inline-flex items-center space-x-1 hover:text-slate-900 cursor-pointer transition-colors"
@@ -519,7 +519,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               {!isUser && msg.quotes && msg.quotes.length > 0 && (
                 <div className="w-full max-w-xl space-y-1.5 mt-2">
                   <div className="text-[10px] uppercase font-bold tracking-wider text-slate-500 px-1">
-                    Supporting Quotes ({msg.quotes.length})
+                    Supporting Document Excerpts ({msg.quotes.length})
                   </div>
                   {msg.quotes.map((q, qIdx) => (
                     <div
@@ -533,14 +533,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center space-x-1.5">
                           {q.verified ? (
-                            <span className="inline-flex items-center space-x-1 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                            <span className="inline-flex items-center space-x-1 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800" title="Verbatim text verified physically on the indicated page">
                               <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                              <span>Verified Quote</span>
+                              <span>Verbatim Quote Matched</span>
                             </span>
                           ) : (
-                            <span className="inline-flex items-center space-x-1 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+                            <span className="inline-flex items-center space-x-1 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-800" title="Not found verbatim in document text - AI paraphrased or interpretation">
                               <ShieldAlert className="w-3 h-3 text-amber-600" />
-                              <span>Unverified / Paraphrased</span>
+                              <span>Unverified / AI Interpretation</span>
                             </span>
                           )}
 

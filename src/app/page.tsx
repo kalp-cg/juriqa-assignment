@@ -31,6 +31,15 @@ export default function Home() {
   const [isLoadingDocDetails, setIsLoadingDocDetails] = useState<boolean>(false);
   const [docCache, setDocCache] = useState<Record<string, any>>({});
 
+  // Auto-dismiss toast notifications after 4 seconds
+  useEffect(() => {
+    if (!notification) return;
+    const timer = setTimeout(() => {
+      setNotification(null);
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [notification]);
+
   // Load document list
   const fetchDocuments = async () => {
     try {
@@ -226,6 +235,7 @@ export default function Home() {
             onDeleteDocument={handleDeleteDocument}
             onRefresh={fetchDocuments}
             onCompareWith={handleCompareWith}
+            onShowNotification={(text, type) => setNotification({ text, type })}
           />
         )}
 

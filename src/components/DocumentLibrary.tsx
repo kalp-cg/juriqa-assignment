@@ -35,6 +35,7 @@ interface DocumentLibraryProps {
   onDeleteDocument: (docId: string) => void;
   onRefresh: () => void;
   onCompareWith: (docAId: string, docBId?: string) => void;
+  onShowNotification?: (text: string, type: 'success' | 'error') => void;
 }
 
 export const DocumentLibrary: React.FC<DocumentLibraryProps> = ({
@@ -43,6 +44,7 @@ export const DocumentLibrary: React.FC<DocumentLibraryProps> = ({
   onDeleteDocument,
   onRefresh,
   onCompareWith,
+  onShowNotification,
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string>('');
@@ -58,6 +60,17 @@ export const DocumentLibrary: React.FC<DocumentLibraryProps> = ({
     if (!lower.endsWith('.pdf') && !lower.endsWith('.docx')) {
       setUploadError(
         `Invalid file type "${file.name}". Veritas Legal AI accepts only PDF (.pdf) and Microsoft Word (.docx) contracts. Other file types are rejected.`
+      );
+      return;
+    }
+
+    // File size check: up to 10 MB allowed
+    const MAX_SIZE_MB = 10;
+    const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
+    if (file.size > MAX_SIZE_BYTES) {
+      const fileSizeMb = (file.size / (1024 * 1024)).toFixed(1);
+      setUploadError(
+        `File is too large (${fileSizeMb} MB). Maximum allowed upload size is 10 MB. Please upload a file smaller than 10 MB or compress the document.`
       );
       return;
     }
@@ -83,7 +96,18 @@ export const DocumentLibrary: React.FC<DocumentLibraryProps> = ({
         body: formData,
       });
 
-      const data = await res.json();
+      if (res.status === 413) {
+        throw new Error(
+          'Payload too large (HTTP 413): The file exceeded the server limit (Note: live deployments on Vercel Serverless Functions enforce a 4.5 MB platform ceiling).'
+        );
+      }
+
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error(`Upload failed with status ${res.status}: Server returned an unparseable response.`);
+      }
 
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Failed to process document');
@@ -94,6 +118,10 @@ export const DocumentLibrary: React.FC<DocumentLibraryProps> = ({
         setIsUploading(false);
         setUploadProgress('');
         onRefresh();
+        onShowNotification?.(
+          `Contract "${data.document?.filename || file.name}" uploaded and analyzed successfully!`,
+          'success'
+        );
         if (data.document?.id) {
           onOpenDocument(data.document.id, data.document);
         }
@@ -184,7 +212,7 @@ export const DocumentLibrary: React.FC<DocumentLibraryProps> = ({
             {isUploading ? 'Processing Contract...' : 'Drag and drop your contract here, or browse'}
           </h3>
           <p className="text-xs text-slate-500 mt-1">
-            Supports PDF (.pdf) and Microsoft Word (.docx). Multi-page and 150+ page enterprise contracts supported.
+            Supports PDF (.pdf) and Microsoft Word (.docx) up to 10 MB. Multi-page and enterprise contracts supported.
           </p>
 
           {/* Live Processing Indicator */}

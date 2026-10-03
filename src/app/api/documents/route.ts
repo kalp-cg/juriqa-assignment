@@ -32,6 +32,15 @@ export async function POST(req: NextRequest) {
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
+
+    // Limit check: 10 MB
+    if (buffer.length > 10 * 1024 * 1024) {
+      return NextResponse.json(
+        { success: false, error: 'File size exceeds maximum allowed limit of 10 MB.' },
+        { status: 413 }
+      );
+    }
+
     const docId = 'doc_' + Math.random().toString(36).substring(2, 11);
 
     // Initial record with processing status
