@@ -44,13 +44,13 @@ When lawyers, compliance officers, and general counsel analyze high-stakes comme
 
 | Document Library & Processing | Interactive Split-Pane Workspace |
 |:---:|:---:|
-| ![Document Library](public/screenshots/document_library.png) | ![Chat and Citation](public/screenshots/chat_and_citation.png) |
+| ![Document Library](images/document_library.png) | ![Chat and Citation](images/chat_and_citation.png) |
 | *Accepts PDF & DOCX, auto-extracts clauses, rejects non-OCR scans* | *Streaming SSE chat, verified quote badges, live text highlighting* |
 
-| Substantive Version Comparison | Agentic Research Loop (Part C) |
+| Substantive Version Comparison | Multi-Document Cross Analysis |
 |:---:|:---:|
-| ![Contract Comparison](public/screenshots/contract_comparison.png) | ![Agentic Loop](public/screenshots/chat_and_citation.png) |
-| *Clause-by-clause diffing, High/Med/Low risk classification* | *Multi-round tool execution (`search`, `inspect_clause`) with 5-round cap* |
+| ![Contract Comparison](images/contract_comparison.png) | ![Multi-Document Analysis](images/multi_document_analysis.png) |
+| *Clause-by-clause diffing, High/Med/Low risk classification* | *Multi-contract comparison with source attribution & synthesis* |
 
 ---
 
@@ -137,6 +137,8 @@ When you click **"Load Sample Contracts"**, the repository populates 14 realisti
 ---
 
 ## System Architecture
+
+![Veritas System Architecture Pipeline](images/architecture_pipeline.png)
 
 ```
                        ┌─────────────────────────────────────────┐
