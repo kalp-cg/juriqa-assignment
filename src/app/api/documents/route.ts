@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, DocumentRecord } from '@/lib/db';
-import { validateFileType, processPdf, processDocx } from '@/lib/documentProcessor';
+import { validateFileType, processPdf, processDocx, processRawText } from '@/lib/documentProcessor';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -17,6 +17,54 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const contentType = req.headers.get('content-type') || '';
+
+    // Handle pasted raw contract text
+    if (contentType.includes('application/json')) {
+      const json = await req.json();
+      const rawText = json.text || json.rawText || '';
+      const title = json.title || 'Pasted_Contract.docx';
+
+      if (!rawText.trim()) {
+        return NextResponse.json({ success: false, error: 'No contract text provided.' }, { status: 400 });
+      }
+
+      const docId = 'doc_' + Math.random().toString(36).substring(2, 11);
+      const processed = processRawText(rawText, title, docId);
+
+      const record: DocumentRecord = {
+        id: docId,
+        filename: title,
+        filetype: 'docx',
+        filesize: Buffer.byteLength(rawText, 'utf8'),
+        total_pages: processed.totalPages,
+        total_words: processed.totalWords,
+        raw_text: processed.rawText,
+        pages_json: JSON.stringify(processed.pages),
+        clauses_json: JSON.stringify(processed.clauses),
+        created_at: new Date().toISOString(),
+        status: 'ready',
+      };
+      await db.saveDocument(record);
+
+      return NextResponse.json({
+        success: true,
+        document: {
+          id: record.id,
+          filename: record.filename,
+          filetype: record.filetype,
+          filesize: record.filesize,
+          total_pages: record.total_pages,
+          total_words: record.total_words,
+          clauses_count: processed.clauses.length,
+          status: 'ready',
+          pages: processed.pages,
+          clauses: processed.clauses,
+          raw_text: processed.rawText,
+        },
+      });
+    }
+
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
 
@@ -58,6 +106,7 @@ export async function POST(req: NextRequest) {
       status: 'processing',
     };
     await db.saveDocument(initialRecord);
+
 
     try {
       let processed;

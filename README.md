@@ -1,22 +1,30 @@
-# Veritas — Zero-Trust Legal Contract Intelligence Platform
+# Veritas — Zero-Trust Legal Contract Intelligence Platform ⚖️
 
-![Veritas Cover Thumbnail](youtube_thumbnail.jpg)
+[![Watch Veritas Video Walkthrough](youtube_thumbnail.jpg)](https://youtu.be/EyniRAW8TvM?si=XhhVZaRM5S8wzWua)
 
 <div align="center">
 
 [![Next.js 14](https://img.shields.io/badge/Next.js-14.2.35-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
-[![SQLite WAL](https://img.shields.io/badge/SQLite_3-WAL_Mode-003B57?style=for-the-badge&logo=sqlite)](https://sqlite.org/)
-[![Gemini Flash](https://img.shields.io/badge/Google_Gemini-2.5_Flash-8E75B2?style=for-the-badge&logo=google)](https://deepmind.google/technologies/gemini/)
+[![YouTube Walkthrough](https://img.shields.io/badge/YouTube-Video_Walkthrough-red?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/EyniRAW8TvM?si=XhhVZaRM5S8wzWua)
 [![Live Demo](https://img.shields.io/badge/Live_Demo-Vercel-success?style=for-the-badge&logo=vercel)](https://juriqa-assignment-aew5mc3jx-kalp-cgs-projects.vercel.app/)
 
 **Built for the Juriqa Full-Stack Engineering Assignment (UAE Legal Tech)**  
 *Zero-Trust Programmatic Quote Verification • Interactive Passage Highlighting • Substantive Clause Version Diffing • Agentic Tool-Use Loop • 14 Multilingual Sample Contracts*
 
-[**Explore Live Application**](https://juriqa-assignment-aew5mc3jx-kalp-cgs-projects.vercel.app/) • [**Architecture Diagram**](#system-architecture) • [**Feature Walkthrough**](#key-features) • [**Bonus Points Review**](#bonus-points--assignment-extras)
-
 </div>
+
+---
+
+## 📌 Quick Access & Links
+
+| Platform | Link | Description |
+|---|---|---|
+| 🌐 **Live Web Application** | [juriqa-assignment.vercel.app](https://juriqa-assignment-aew5mc3jx-kalp-cgs-projects.vercel.app/) | Deployed production app on Vercel |
+| 🎬 **YouTube Demo Video** | [youtu.be/EyniRAW8TvM](https://youtu.be/EyniRAW8TvM?si=XhhVZaRM5S8wzWua) | Comprehensive video walkthrough & code explanation by Kalp Patel |
+| 📦 **GitHub Repository** | [github.com/kalp-cg/juriqa-assignment](https://github.com/kalp-cg/juriqa-assignment) | Production source code, test suites & documentation |
+| 📐 **System Architecture** | [Excalidraw Diagram](#system-architecture) | Visual 5-tier architecture and interactive diagram file |
 
 ---
 

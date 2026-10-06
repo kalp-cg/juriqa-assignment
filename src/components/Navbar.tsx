@@ -24,6 +24,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [baseUrl, setBaseUrl] = useState('');
   const [model, setModel] = useState('');
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -32,6 +34,54 @@ export const Navbar: React.FC<NavbarProps> = ({
       setModel(localStorage.getItem('veritas_ai_model') || '');
     }
   }, []);
+
+  const handleTestConnection = async () => {
+    setTestingConnection(true);
+    setTestResult(null);
+    try {
+      if (!apiKey.trim()) {
+        await new Promise(r => setTimeout(r, 400));
+        setTestResult({
+          success: true,
+          message: 'Built-in Local Smart Intelligence Engine is ready with zero API key required.',
+        });
+        return;
+      }
+
+      const testModel = model.trim() || 'gemini-2.5-flash';
+      const targetBase = baseUrl.trim() || 'https://generativelanguage.googleapis.com/v1beta/openai';
+
+      const res = await fetch(`${targetBase}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey.trim()}`,
+        },
+        body: JSON.stringify({
+          model: testModel,
+          messages: [{ role: 'user', content: 'Say OK' }],
+          max_tokens: 5,
+        }),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson?.error?.message || `HTTP error ${res.status}`);
+      }
+
+      setTestResult({
+        success: true,
+        message: `Successfully connected to external AI provider (${testModel})!`,
+      });
+    } catch (err: any) {
+      setTestResult({
+        success: false,
+        message: `Connection test notice: ${err.message}`,
+      });
+    } finally {
+      setTestingConnection(false);
+    }
+  };
 
   const handleSaveSettings = () => {
     if (typeof window !== 'undefined') {
@@ -142,6 +192,15 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Action / Seed / Settings Buttons */}
             <div className="flex items-center space-x-2">
+              <div
+                onClick={() => setShowSettings(true)}
+                className="hidden sm:inline-flex items-center space-x-1.5 px-2.5 py-1 text-[11px] font-medium text-slate-700 bg-slate-100 hover:bg-slate-200/80 rounded-full border border-slate-200 cursor-pointer transition-colors"
+                title="AI Engine Status - Click to configure"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>{apiKey ? 'Custom AI Active' : 'Built-in Engine Ready'}</span>
+              </div>
+
               <button
                 onClick={() => setShowArchitecture(true)}
                 className="inline-flex items-center space-x-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-md shadow-xs transition-colors"
@@ -307,6 +366,46 @@ export const Navbar: React.FC<NavbarProps> = ({
                   className="w-full bg-slate-50 border border-slate-200 rounded p-2 text-slate-900 font-mono text-xs focus:bg-white focus:outline-hidden focus:border-slate-400"
                 />
               </div>
+
+              {/* Test Connection Button */}
+              <div className="pt-1">
+                <button
+                  type="button"
+                  disabled={testingConnection}
+                  onClick={handleTestConnection}
+                  className="w-full py-1.5 px-3 rounded border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-medium flex items-center justify-center space-x-1.5 transition-colors"
+                >
+                  {testingConnection ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-600" />
+                      <span>Testing API Connectivity...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Key className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Test Engine / API Connection</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Test Result Message */}
+              {testResult && (
+                <div
+                  className={`p-2.5 rounded-lg border text-xs flex items-start space-x-2 ${
+                    testResult.success
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                      : 'bg-amber-50 border-amber-200 text-amber-800'
+                  }`}
+                >
+                  {testResult.success ? (
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <X className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  )}
+                  <span className="leading-tight">{testResult.message}</span>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center justify-between pt-3 border-t border-slate-100">

@@ -2,6 +2,9 @@
 
 ### Candidate: Kalp Patel
 ### Project: Veritas Legal AI (Contract Analysis, Substantive Comparison & Agentic Research)
+### 🎬 Video Walkthrough: [https://youtu.be/EyniRAW8TvM](https://youtu.be/EyniRAW8TvM?si=XhhVZaRM5S8wzWua)
+### 🌐 Production Live App: [https://juriqa-assignment.vercel.app](https://juriqa-assignment-aew5mc3jx-kalp-cgs-projects.vercel.app/)
+### 📦 GitHub Repository: [https://github.com/kalp-cg/juriqa-assignment](https://github.com/kalp-cg/juriqa-assignment)
 
 ---
 

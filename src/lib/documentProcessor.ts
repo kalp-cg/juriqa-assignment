@@ -248,3 +248,56 @@ export async function processDocx(
     clauses,
   };
 }
+
+export function processRawText(
+  rawText: string,
+  title: string = 'Pasted_Agreement.txt',
+  docId: string = 'doc_' + Math.random().toString(36).substring(2, 11)
+): ProcessedDocument {
+  const readableCount = (rawText.match(/[\p{L}\p{N}]/gu) || []).length;
+  if (readableCount < 10) {
+    throw new Error('Pasted contract text contains insufficient characters to process.');
+  }
+
+  const paragraphs = rawText.split(/\n+/).filter(p => p.trim().length > 0);
+  const pages: DocumentPage[] = [];
+  let currentPageText: string[] = [];
+  let currentLength = 0;
+  let pageNum = 1;
+
+  for (const para of paragraphs) {
+    currentPageText.push(para);
+    currentLength += para.length;
+    if (currentLength >= 2000) {
+      pages.push({
+        pageNumber: pageNum++,
+        text: currentPageText.join('\n\n'),
+      });
+      currentPageText = [];
+      currentLength = 0;
+    }
+  }
+
+  if (currentPageText.length > 0 || pages.length === 0) {
+    pages.push({
+      pageNumber: pageNum,
+      text: currentPageText.join('\n\n'),
+    });
+  }
+
+  const words = rawText.trim().split(/\s+/).filter(Boolean);
+  const clauses = extractClauses(pages);
+
+  return {
+    id: docId,
+    filename: title,
+    filetype: 'docx',
+    filesize: Buffer.byteLength(rawText, 'utf8'),
+    totalPages: pages.length,
+    totalWords: words.length,
+    rawText,
+    pages,
+    clauses,
+  };
+}
+

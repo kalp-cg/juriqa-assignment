@@ -22,9 +22,11 @@ import {
   Mic,
   MicOff,
   Download,
+  Shield,
 } from 'lucide-react';
 import { AgentStep, DocumentCoverage } from '@/lib/aiService';
 import { VerifiedQuote } from '@/lib/quoteVerifier';
+import { anonymizeContractText } from '@/lib/anonymizer';
 
 export interface ChatMessage {
   id: string;
@@ -63,6 +65,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [activeSteps, setActiveSteps] = useState<AgentStep[]>([]);
   const [expandedStepsMap, setExpandedStepsMap] = useState<Record<string, boolean>>({});
   const [isListening, setIsListening] = useState<boolean>(false);
+  const [anonymizePII, setAnonymizePII] = useState<boolean>(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -385,6 +388,18 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
           <span className="text-xs font-semibold text-slate-900 truncate">Agentic Research Assistant</span>
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 font-mono">Part C Opt. 2</span>
+          <button
+            onClick={() => setAnonymizePII(!anonymizePII)}
+            className={`px-2 py-0.5 rounded text-[10px] font-semibold flex items-center space-x-1 transition-colors border ${
+              anonymizePII
+                ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
+            }`}
+            title="Toggle PII Anonymization Shield for conversation and quotes"
+          >
+            <Shield className="w-2.5 h-2.5" />
+            <span>{anonymizePII ? 'PII Hidden' : 'Anonymize PII'}</span>
+          </button>
         </div>
 
         {/* Chat History Selector & New Chat */}
@@ -504,7 +519,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     </button>
                   </div>
                 )}
-                <div className="whitespace-pre-wrap">{msg.content}</div>
+                <div className="whitespace-pre-wrap">
+                  {anonymizePII ? anonymizeContractText(msg.content).anonymizedText : msg.content}
+                </div>
 
                 {/* Coverage Transparency Metric (Requirement 4) */}
                 {!isUser && msg.coverage && (
@@ -568,7 +585,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       </div>
 
                       <blockquote className="font-serif italic text-slate-800 text-[12px] pl-2 border-l-2 border-slate-300 mt-1">
-                        "{q.matchedText || q.quote}"
+                        "{anonymizePII ? anonymizeContractText(q.matchedText || q.quote).anonymizedText : (q.matchedText || q.quote)}"
                       </blockquote>
 
                       {!q.verified && q.reason && (

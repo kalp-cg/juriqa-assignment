@@ -13,9 +13,15 @@ import {
   Maximize2,
   Loader2,
   RefreshCw,
+  Shield,
+  Award,
+  Copy,
+  Check,
+  X,
 } from 'lucide-react';
 import { DocumentPage } from '@/lib/quoteVerifier';
 import { ExtractedClause } from '@/lib/documentProcessor';
+import { anonymizeContractText } from '@/lib/anonymizer';
 
 interface DocumentViewerProps {
   document: {
@@ -51,6 +57,10 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [showClauses, setShowClauses] = useState<boolean>(false);
+  const [anonymizePII, setAnonymizePII] = useState<boolean>(false);
+  const [showClauseModal, setShowClauseModal] = useState<boolean>(false);
+  const [clauseSearch, setClauseSearch] = useState<string>('');
+  const [copiedClauseId, setCopiedClauseId] = useState<string | null>(null);
   const highlightedRef = useRef<HTMLDivElement>(null);
   const viewerContainerRef = useRef<HTMLDivElement>(null);
 
@@ -121,7 +131,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   const activePageObj = document.pages.find(p => p.pageNumber === currentPage) || document.pages[0];
 
   // Highlight helper for active citation or search
-  const renderHighlightedText = (pageText: string) => {
+  const renderHighlightedText = (rawPageText: string) => {
+    const pageText = anonymizePII ? anonymizeContractText(rawPageText).anonymizedText : rawPageText;
+
     if (activeCitation?.quote) {
       // Clean target quote
       const cleanQ = activeCitation.quote.trim().replace(/^["'“‘]+|["'”’]+$/g, '');
@@ -229,8 +241,32 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
           </div>
         </div>
 
-        {/* Controls: Search, Clauses Drawer toggle, Pagination */}
+        {/* Controls: PII Anonymize, Extract Clauses, Search, Clauses Drawer toggle, Pagination */}
         <div className="flex items-center space-x-2">
+          {/* Anonymize PII Toggle */}
+          <button
+            onClick={() => setAnonymizePII(!anonymizePII)}
+            className={`px-2 py-1 rounded-md border text-xs font-medium flex items-center space-x-1.5 transition-colors ${
+              anonymizePII
+                ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+            }`}
+            title="Mask names, emails, phones, and financial amounts (PII Anonymization Shield)"
+          >
+            <Shield className="w-3.5 h-3.5 text-blue-500" />
+            <span className="hidden sm:inline text-[11px]">{anonymizePII ? 'PII Hidden' : 'Anonymize PII'}</span>
+          </button>
+
+          {/* Extract Clauses Explorer */}
+          <button
+            onClick={() => setShowClauseModal(true)}
+            className="px-2 py-1 rounded-md border text-xs font-medium flex items-center space-x-1.5 bg-white text-slate-700 border-slate-200 hover:bg-slate-100 transition-colors"
+            title="Extract and inspect all clauses"
+          >
+            <Award className="w-3.5 h-3.5 text-amber-600" />
+            <span className="hidden sm:inline text-[11px]">Extract Clauses</span>
+          </button>
+
           {/* Search */}
           <div className="relative hidden sm:block">
             <Search className="w-3.5 h-3.5 absolute left-2.5 top-2 text-slate-400" />
@@ -239,7 +275,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
               placeholder="Search contract..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="text-xs pl-8 pr-2 py-1 bg-white border border-slate-200 rounded-md w-36 focus:w-44 focus:outline-hidden focus:border-slate-400 transition-all"
+              className="text-xs pl-8 pr-2 py-1 bg-white border border-slate-200 rounded-md w-32 focus:w-40 focus:outline-hidden focus:border-slate-400 transition-all"
             />
           </div>
 
@@ -254,7 +290,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
             title="Toggle clause outline"
           >
             <List className="w-3.5 h-3.5" />
-            <span className="hidden md:inline text-[11px]">Clauses</span>
+            <span className="hidden md:inline text-[11px]">Outline</span>
           </button>
 
           {/* Page controls */}
@@ -383,6 +419,113 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Extract Clauses Explorer Modal */}
+      {showClauseModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-2xl w-full p-6 space-y-4 max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center space-x-2">
+                <Award className="w-5 h-5 text-amber-600" />
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-900">Extracted Contract Clauses Explorer</h3>
+                  <p className="text-[11px] text-slate-500 font-mono">
+                    {document.filename} • {document.clauses.length} structured clauses detected
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowClauseModal(false)}
+                className="text-slate-400 hover:text-slate-700 p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Filter Search */}
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Filter clauses by title or content (e.g. Liability, Termination, Payment, Law)..."
+                value={clauseSearch}
+                onChange={e => setClauseSearch(e.target.value)}
+                className="w-full text-xs pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-hidden focus:border-slate-400"
+              />
+            </div>
+
+            {/* Clauses List */}
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+              {document.clauses
+                .filter(c => 
+                  !clauseSearch || 
+                  c.title.toLowerCase().includes(clauseSearch.toLowerCase()) || 
+                  c.number.toLowerCase().includes(clauseSearch.toLowerCase()) || 
+                  c.text.toLowerCase().includes(clauseSearch.toLowerCase())
+                )
+                .map(c => (
+                  <div key={c.id} className="p-3.5 rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-slate-50 transition-colors space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-mono text-[10px] font-bold bg-slate-200 text-slate-800 px-2 py-0.5 rounded">
+                          Sec {c.number}
+                        </span>
+                        <h4 className="text-xs font-bold text-slate-900">{c.title}</h4>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-[10px] text-slate-500 font-mono">Page {c.pageNumber}</span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(c.text);
+                            setCopiedClauseId(c.id);
+                            setTimeout(() => setCopiedClauseId(null), 1500);
+                          }}
+                          className="inline-flex items-center space-x-1 px-2 py-0.5 rounded border border-slate-200 text-[10px] font-medium text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-100 transition-colors"
+                          title="Copy clause text"
+                        >
+                          {copiedClauseId === c.id ? (
+                            <>
+                              <Check className="w-3 h-3 text-emerald-600" />
+                              <span className="text-emerald-700">Copied</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3" />
+                              <span>Copy</span>
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setCurrentPage(c.pageNumber);
+                            setShowClauseModal(false);
+                          }}
+                          className="text-[10px] font-medium text-blue-600 hover:text-blue-800 underline ml-1"
+                        >
+                          Jump to Page
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-700 font-serif leading-relaxed line-clamp-3">
+                      {anonymizePII ? anonymizeContractText(c.text).anonymizedText : c.text}
+                    </p>
+                  </div>
+                ))}
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
+              <span>Displaying {document.clauses.length} structured AST clauses</span>
+              <button
+                onClick={() => setShowClauseModal(false)}
+                className="px-3 py-1.5 bg-slate-900 text-white rounded-md text-xs font-medium hover:bg-slate-800 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
