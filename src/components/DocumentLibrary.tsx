@@ -14,6 +14,9 @@ import {
   FileCheck,
   RefreshCw,
   Info,
+  Search,
+  Filter,
+  GitCompare,
 } from 'lucide-react';
 
 export interface DocumentSummary {
@@ -54,6 +57,8 @@ export const DocumentLibrary: React.FC<DocumentLibraryProps> = ({
   const [pastedTitle, setPastedTitle] = useState('Commercial_Agreement_Custom.docx');
   const [pastedText, setPastedText] = useState('');
   const [isSubmittingPaste, setIsSubmittingPaste] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pdf' | 'docx' | 'error'>('all');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handlePasteSubmit = async () => {
@@ -185,30 +190,48 @@ export const DocumentLibrary: React.FC<DocumentLibraryProps> = ({
   };
 
   const readyDocs = documents.filter(d => d.status === 'ready');
+  const filteredDocuments = documents.filter(doc => {
+    const q = searchQuery.toLowerCase().trim();
+    const matchesSearch = !q || doc.filename.toLowerCase().includes(q);
+    const matchesType =
+      statusFilter === 'all' ||
+      (statusFilter === 'pdf' && doc.filetype === 'pdf') ||
+      (statusFilter === 'docx' && doc.filetype === 'docx') ||
+      (statusFilter === 'error' && doc.status === 'error');
+    return matchesSearch && matchesType;
+  });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2">
         <div>
-          <h1 className="text-2xl font-serif font-bold text-slate-900 tracking-tight">Contract Repository</h1>
-          <p className="text-sm text-slate-600 mt-1">
-            Upload legal agreements (PDF or DOCX). Text, clauses, and layout indices are extracted and verified.
+          <h1 className="text-xl sm:text-2xl font-serif font-bold text-slate-900 tracking-tight">Contract Repository</h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            Zero-Trust Legal Intelligence. Ingest agreements to extract clauses, index text, and run verified research.
           </p>
         </div>
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2 shrink-0">
           <button
             onClick={onRefresh}
-            className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 shadow-2xs transition-colors"
+            className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 shadow-2xs transition-colors"
+            title="Refresh repository"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
+            <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
             <span>Refresh</span>
           </button>
           <button
-            onClick={() => fileInputRef.current?.click()}
-            className="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-md shadow-sm transition-colors"
+            onClick={() => setShowPasteModal(true)}
+            className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg shadow-2xs transition-colors"
           >
-            <Upload className="w-4 h-4" />
+            <FileCode className="w-3.5 h-3.5 text-slate-500" />
+            <span>Paste Text</span>
+          </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg shadow-2xs transition-colors"
+          >
+            <Upload className="w-3.5 h-3.5" />
             <span>Upload Contract</span>
           </button>
           <input
@@ -225,7 +248,7 @@ export const DocumentLibrary: React.FC<DocumentLibraryProps> = ({
         </div>
       </div>
 
-      {/* Upload Zone */}
+      {/* Compact Ingestion Dropzone */}
       <div
         onDragOver={e => {
           e.preventDefault();
@@ -234,62 +257,52 @@ export const DocumentLibrary: React.FC<DocumentLibraryProps> = ({
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
         onClick={() => !isUploading && fileInputRef.current?.click()}
-        className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
+        className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all ${
           dragOver
-            ? 'border-slate-800 bg-slate-100/70 scale-[1.005]'
-            : 'border-slate-300 hover:border-slate-400 bg-white'
+            ? 'border-slate-800 bg-slate-100/60'
+            : 'border-slate-300 hover:border-slate-400 bg-slate-50/40 hover:bg-white'
         } ${isUploading ? 'pointer-events-none opacity-80' : ''}`}
       >
-        <div className="max-w-md mx-auto flex flex-col items-center">
-          <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-700 mb-3">
-            <Upload className="w-6 h-6" />
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 max-w-xl mx-auto">
+          <div className="w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-700 shadow-2xs shrink-0">
+            <Upload className="w-4 h-4 text-slate-600" />
           </div>
-          <h3 className="text-sm font-semibold text-slate-900">
-            {isUploading ? 'Processing Contract...' : 'Drag and drop your contract here, or browse'}
-          </h3>
-          <p className="text-xs text-slate-500 mt-1">
-            Supports PDF (.pdf) and Microsoft Word (.docx) up to 10 MB. Multi-page and enterprise contracts supported.
-          </p>
-
-          {/* Live Processing Indicator */}
-          {isUploading && (
-            <div className="mt-4 w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-left">
-              <div className="flex items-center space-x-2 text-xs font-medium text-slate-800">
-                <RefreshCw className="w-4 h-4 animate-spin text-slate-700" />
-                <span>Processing Status:</span>
-              </div>
-              <p className="text-xs text-slate-600 mt-1 font-mono">{uploadProgress}</p>
-              <div className="w-full bg-slate-200 h-1.5 rounded-full mt-2.5 overflow-hidden">
-                <div className="bg-slate-900 h-full rounded-full animate-pulse w-3/4"></div>
-              </div>
-            </div>
-          )}
+          <div className="text-center sm:text-left">
+            <p className="text-xs font-semibold text-slate-900">
+              {isUploading ? 'Processing contract...' : 'Drop PDF or Word contracts here, or click to browse'}
+            </p>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Supports PDF (.pdf) and DOCX (.docx) up to 10 MB • Scanned non-OCR PDFs detected and reported safely
+            </p>
+          </div>
         </div>
+
+        {/* Live Processing Indicator */}
+        {isUploading && (
+          <div className="mt-3.5 max-w-md mx-auto bg-white border border-slate-200 rounded-lg p-2.5 text-left shadow-2xs">
+            <div className="flex items-center space-x-2 text-[11px] font-medium text-slate-800">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-700" />
+              <span>Processing status:</span>
+              <span className="text-slate-600 font-mono text-[10px]">{uploadProgress}</span>
+            </div>
+            <div className="w-full bg-slate-100 h-1.5 rounded-full mt-2 overflow-hidden">
+              <div className="bg-slate-900 h-full rounded-full animate-pulse w-3/4"></div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Or Paste Text Option */}
-      <div className="flex items-center justify-center -mt-4">
-        <button
-          type="button"
-          onClick={() => setShowPasteModal(true)}
-          className="inline-flex items-center space-x-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3.5 py-1.5 rounded-full shadow-2xs transition-colors"
-        >
-          <FileCode className="w-3.5 h-3.5 text-slate-500" />
-          <span>Or Paste Contract Text Directly</span>
-        </button>
-      </div>
-
-      {/* Upload Error Banner (e.g. Scanned PDF or Unsupported Type) */}
+      {/* Upload Error Banner */}
       {uploadError && (
-        <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 flex items-start space-x-3 text-amber-900 text-xs">
-          <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+        <div className="bg-amber-50 border border-amber-300 rounded-xl p-3.5 flex items-start space-x-3 text-amber-900 text-xs">
+          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
           <div className="flex-1">
-            <h4 className="font-semibold text-sm">Processing Notice / Document Rejected</h4>
-            <p className="mt-1 leading-relaxed">{uploadError}</p>
+            <h4 className="font-semibold text-xs text-amber-900">Processing Notice</h4>
+            <p className="mt-0.5 leading-relaxed text-amber-800">{uploadError}</p>
           </div>
           <button
             onClick={() => setUploadError(null)}
-            className="text-amber-700 hover:text-amber-900 font-bold text-sm px-1.5"
+            className="text-amber-700 hover:text-amber-900 font-bold text-xs px-1"
           >
             ✕
           </button>
@@ -298,34 +311,83 @@ export const DocumentLibrary: React.FC<DocumentLibraryProps> = ({
 
       {/* Document Library Table / Cards */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
-        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <FileText className="w-4 h-4 text-slate-600" />
-            <span className="text-sm font-semibold text-slate-900">Uploaded Documents</span>
-            <span className="text-xs text-slate-500 font-mono">({documents.length})</span>
+        {/* Search & Filter Toolbar */}
+        <div className="px-4 sm:px-6 py-3 border-b border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2 flex-1">
+            <div className="relative min-w-[200px] flex-1 max-w-xs">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search contracts..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full text-xs pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-hidden focus:border-slate-400"
+              />
+            </div>
+
+            {/* Filter Tabs */}
+            <div className="flex items-center space-x-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200/60 text-xs">
+              <button
+                onClick={() => setStatusFilter('all')}
+                className={`px-2.5 py-1 rounded-md font-medium text-[11px] transition-colors ${
+                  statusFilter === 'all'
+                    ? 'bg-white text-slate-900 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                All ({documents.length})
+              </button>
+              <button
+                onClick={() => setStatusFilter('pdf')}
+                className={`px-2.5 py-1 rounded-md font-medium text-[11px] transition-colors ${
+                  statusFilter === 'pdf'
+                    ? 'bg-white text-slate-900 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                PDFs ({documents.filter(d => d.filetype === 'pdf').length})
+              </button>
+              <button
+                onClick={() => setStatusFilter('docx')}
+                className={`px-2.5 py-1 rounded-md font-medium text-[11px] transition-colors ${
+                  statusFilter === 'docx'
+                    ? 'bg-white text-slate-900 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                DOCX ({documents.filter(d => d.filetype === 'docx').length})
+              </button>
+            </div>
           </div>
+
+          {/* Compare Action */}
           {readyDocs.length >= 2 && (
             <button
               onClick={() => onCompareWith(readyDocs[0].id, readyDocs[1].id)}
-              className="text-xs font-medium text-slate-700 hover:text-slate-900 flex items-center space-x-1"
+              className="inline-flex items-center space-x-1 px-3 py-1.5 text-xs font-semibold text-slate-800 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg shadow-2xs transition-colors shrink-0"
             >
-              <span>Compare v1 vs v2</span>
-              <span className="text-slate-400">→</span>
+              <GitCompare className="w-3.5 h-3.5 text-slate-600" />
+              <span>Compare Versions</span>
+              <span className="text-slate-400 ml-0.5">→</span>
             </button>
           )}
         </div>
 
-        {documents.length === 0 ? (
+        {filteredDocuments.length === 0 ? (
           <div className="text-center py-12 px-4">
             <FileCode className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-            <h3 className="text-sm font-medium text-slate-900">No contracts uploaded yet</h3>
+            <h3 className="text-sm font-medium text-slate-900">
+              {documents.length === 0 ? 'No contracts uploaded yet' : 'No matching contracts found'}
+            </h3>
             <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-              Upload your legal contracts above, or click "Load Sample Contracts" in the top bar to inspect preloaded agreements.
+              {documents.length === 0
+                ? 'Upload your contracts above, or click "Sample Contracts" in the top bar to inspect preloaded agreements.'
+                : 'Try clearing your search query or switching filters.'}
             </p>
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
-            {documents.map(doc => {
+            {filteredDocuments.map(doc => {
               let clauseCount = 0;
               try {
                 if (doc.clauses_json) {

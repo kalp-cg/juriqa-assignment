@@ -117,37 +117,38 @@ export const Navbar: React.FC<NavbarProps> = ({
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            {/* Big Fancy Brand Name: VERITAS */}
+            {/* Brand Logo & Name */}
             <div
-              className="flex items-center space-x-3 cursor-pointer select-none py-1 group"
+              className="flex items-center space-x-2.5 cursor-pointer select-none py-1 group"
               onClick={() => setActiveTab('library')}
             >
-              <span className="font-serif text-2xl sm:text-3xl font-bold tracking-[0.25em] text-slate-900 uppercase transition-colors group-hover:text-slate-700">
-                VERITAS
-              </span>
-              <span className="hidden sm:inline-block text-[10px] tracking-widest uppercase text-slate-400 font-sans font-semibold border-l border-slate-300 pl-3">
-                Contract Intelligence
-              </span>
+              <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-serif font-bold text-base shadow-xs group-hover:bg-slate-800 transition-colors">
+                V
+              </div>
+              <div className="flex flex-col">
+                <span className="font-serif text-lg font-bold tracking-[0.18em] text-slate-900 uppercase leading-none">
+                  VERITAS
+                </span>
+                <span className="text-[9px] font-mono tracking-wider uppercase text-slate-400 font-semibold mt-0.5">
+                  Legal Contract AI
+                </span>
+              </div>
             </div>
 
-            {/* Navigation Tabs */}
-            <nav className="hidden md:flex items-center space-x-1">
+            {/* Segmented Navigation Tabs */}
+            <nav className="hidden md:flex items-center space-x-1 bg-slate-100 p-1 rounded-lg border border-slate-200/70">
               <button
                 onClick={() => setActiveTab('library')}
-                className={`flex items-center space-x-2 px-3.5 py-2 rounded-md text-xs font-medium transition-all ${
+                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
                   activeTab === 'library'
-                    ? 'bg-slate-900 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    ? 'bg-white text-slate-900 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <FileText className="w-4 h-4" />
-                <span>Document Library</span>
+                <FileText className="w-3.5 h-3.5 text-slate-500" />
+                <span>Contracts</span>
                 {documentCount > 0 && (
-                  <span
-                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                      activeTab === 'library' ? 'bg-slate-700 text-slate-200' : 'bg-slate-200 text-slate-700'
-                    }`}
-                  >
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200/80 text-slate-700 font-mono font-medium">
                     {documentCount}
                   </span>
                 )}
@@ -155,81 +156,72 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               <button
                 onClick={() => setActiveTab('chat')}
-                className={`flex items-center space-x-2 px-3.5 py-2 rounded-md text-xs font-medium transition-all ${
+                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
                   activeTab === 'chat'
-                    ? 'bg-slate-900 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    ? 'bg-white text-slate-900 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <MessageSquare className="w-4 h-4" />
-                <span>Contract Chat & Viewer</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('multi')}
-                className={`flex items-center space-x-2 px-3.5 py-2 rounded-md text-xs font-medium transition-all ${
-                  activeTab === 'multi'
-                    ? 'bg-slate-900 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <Layers className="w-4 h-4" />
-                <span>Multi-Document Analysis</span>
+                <MessageSquare className="w-3.5 h-3.5 text-slate-500" />
+                <span>Q&A Analysis</span>
               </button>
 
               <button
                 onClick={() => setActiveTab('compare')}
-                className={`flex items-center space-x-2 px-3.5 py-2 rounded-md text-xs font-medium transition-all ${
+                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
                   activeTab === 'compare'
-                    ? 'bg-slate-900 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    ? 'bg-white text-slate-900 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <GitCompare className="w-4 h-4" />
-                <span>Contract Comparison</span>
+                <GitCompare className="w-3.5 h-3.5 text-slate-500" />
+                <span>Version Diff</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('multi')}
+                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                  activeTab === 'multi'
+                    ? 'bg-white text-slate-900 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5 text-slate-500" />
+                <span>Multi-Doc</span>
               </button>
             </nav>
 
             {/* Action / Seed / Settings Buttons */}
             <div className="flex items-center space-x-2">
-              <div
-                onClick={() => setShowSettings(true)}
-                className="hidden sm:inline-flex items-center space-x-1.5 px-2.5 py-1 text-[11px] font-medium text-slate-700 bg-slate-100 hover:bg-slate-200/80 rounded-full border border-slate-200 cursor-pointer transition-colors"
-                title="AI Engine Status - Click to configure"
-              >
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>{apiKey ? 'Custom AI Active' : 'Built-in Engine Ready'}</span>
-              </div>
-
-              <button
-                onClick={() => setShowArchitecture(true)}
-                className="inline-flex items-center space-x-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-md shadow-xs transition-colors"
-                title="System Architecture & Flow Diagram (Excalidraw)"
-              >
-                <Network className="w-3.5 h-3.5 text-blue-600" />
-                <span>Architecture</span>
-              </button>
-
-              <button
-                onClick={() => setShowSettings(true)}
-                className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 rounded-md transition-colors"
-                title="AI Model & API Key Settings"
-              >
-                <Settings className="w-4 h-4" />
-              </button>
-
               <button
                 onClick={onSeedSamples}
                 disabled={isSeeding}
-                className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-300 rounded-md shadow-xs transition-colors disabled:opacity-50"
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg shadow-2xs transition-colors disabled:opacity-50"
                 title="Preloads sample contracts (PDF, DOCX v1 & v2, and Scanned test PDF)"
               >
                 {isSeeding ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-600" />
                 ) : (
-                  <FolderDown className="w-3.5 h-3.5 text-slate-600" />
+                  <FolderDown className="w-3.5 h-3.5 text-slate-500" />
                 )}
-                <span>{isSeeding ? 'Loading Samples...' : 'Load Sample Contracts'}</span>
+                <span>{isSeeding ? 'Loading...' : 'Sample Contracts'}</span>
+              </button>
+
+              <button
+                onClick={() => setShowArchitecture(true)}
+                className="inline-flex items-center space-x-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg shadow-2xs transition-colors"
+                title="System Architecture & Flow Diagram (Excalidraw)"
+              >
+                <Network className="w-3.5 h-3.5 text-blue-600" />
+                <span className="hidden sm:inline">Architecture</span>
+              </button>
+
+              <button
+                onClick={() => setShowSettings(true)}
+                className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors"
+                title="AI Model & API Key Settings"
+              >
+                <Settings className="w-4 h-4" />
               </button>
             </div>
           </div>
