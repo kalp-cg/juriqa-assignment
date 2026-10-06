@@ -20,12 +20,14 @@ interface DocumentComparisonProps {
   documents: DocumentSummary[];
   preselectedDocA?: string;
   preselectedDocB?: string;
+  isLoading?: boolean;
 }
 
 export const DocumentComparison: React.FC<DocumentComparisonProps> = ({
   documents,
   preselectedDocA,
   preselectedDocB,
+  isLoading = false,
 }) => {
   const readyDocs = documents.filter(d => d.status === 'ready');
 
@@ -108,7 +110,7 @@ export const DocumentComparison: React.FC<DocumentComparisonProps> = ({
               onChange={e => setDocAId(e.target.value)}
               className="w-full text-xs bg-slate-50 border border-slate-200 rounded-md p-2.5 text-slate-800 focus:outline-hidden focus:border-slate-400"
             >
-              <option value="">Select Base Contract...</option>
+              <option value="">{isLoading ? 'Connecting to contracts...' : 'Select Base Contract...'}</option>
               {readyDocs.map(d => (
                 <option key={d.id} value={d.id}>
                   {d.filename} ({d.filetype.toUpperCase()})
@@ -125,9 +127,10 @@ export const DocumentComparison: React.FC<DocumentComparisonProps> = ({
             <select
               value={docBId}
               onChange={e => setDocBId(e.target.value)}
-              className="w-full text-xs bg-slate-50 border border-slate-200 rounded-md p-2.5 text-slate-800 focus:outline-hidden focus:border-slate-400"
+              disabled={isLoading}
+              className="w-full text-xs bg-slate-50 border border-slate-200 rounded-md p-2.5 text-slate-800 focus:outline-hidden focus:border-slate-400 disabled:opacity-60"
             >
-              <option value="">Select Revised Contract...</option>
+              <option value="">{isLoading ? 'Connecting to contracts...' : 'Select Revised Contract...'}</option>
               {readyDocs.map(d => (
                 <option key={d.id} value={d.id}>
                   {d.filename} ({d.filetype.toUpperCase()})

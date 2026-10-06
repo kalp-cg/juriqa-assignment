@@ -21,6 +21,7 @@ import { VerifiedQuote } from '@/lib/quoteVerifier';
 interface MultiDocumentChatProps {
   documents: DocumentSummary[];
   onOpenDocWithQuote: (docId: string, quote: VerifiedQuote) => void;
+  isLoading?: boolean;
 }
 
 /**
@@ -71,6 +72,7 @@ const AnimatedLayersIcon: React.FC<{ isSynthesizing: boolean }> = ({ isSynthesiz
 export const MultiDocumentChat: React.FC<MultiDocumentChatProps> = ({
   documents,
   onOpenDocWithQuote,
+  isLoading = false,
 }) => {
   const readyDocs = documents.filter(d => d.status === 'ready');
   const [selectedDocIds, setSelectedDocIds] = useState<string[]>(() =>
@@ -187,7 +189,19 @@ export const MultiDocumentChat: React.FC<MultiDocumentChatProps> = ({
           Select Contracts to Compare ({selectedDocIds.length} selected)
         </h3>
 
-        {readyDocs.length < 2 ? (
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="p-3 rounded-lg border border-slate-200 bg-white animate-pulse flex items-start space-x-3">
+                <div className="w-4 h-4 bg-slate-200 rounded mt-1 shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3.5 bg-slate-200 rounded w-3/4" />
+                  <div className="h-3 bg-slate-100 rounded w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : readyDocs.length < 2 ? (
           <p className="text-xs text-slate-500 italic">
             You need at least 2 ready contracts in your library to run multi-document comparisons. Upload or load sample contracts.
           </p>

@@ -29,6 +29,7 @@ export default function Home() {
   const [notification, setNotification] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   const [isLoadingDocDetails, setIsLoadingDocDetails] = useState<boolean>(false);
+  const [isLoadingDocuments, setIsLoadingDocuments] = useState<boolean>(true);
   const [docCache, setDocCache] = useState<Record<string, any>>({});
 
   // Auto-dismiss toast notifications after 4 seconds
@@ -43,6 +44,7 @@ export default function Home() {
   // Load document list
   const fetchDocuments = async () => {
     try {
+      setIsLoadingDocuments(true);
       const res = await fetch('/api/documents');
       const data = await res.json();
       if (data.success && data.documents) {
@@ -57,6 +59,8 @@ export default function Home() {
       }
     } catch (e) {
       console.error('Failed to load documents:', e);
+    } finally {
+      setIsLoadingDocuments(false);
     }
   };
 
@@ -197,6 +201,13 @@ export default function Home() {
         isSeeding={isSeeding}
       />
 
+      {/* Top indeterminate progress loader on initial repository fetch */}
+      {isLoadingDocuments && (
+        <div className="w-full bg-slate-200/60 h-0.5 overflow-hidden relative z-50">
+          <div className="absolute inset-0 bg-slate-900 w-1/2 animate-shimmer-bar"></div>
+        </div>
+      )}
+
       {/* Global Notification Toast */}
       {notification && (
         <div className="max-w-xl mx-auto mt-3 px-4 w-full z-50">
@@ -236,6 +247,7 @@ export default function Home() {
             onRefresh={fetchDocuments}
             onCompareWith={handleCompareWith}
             onShowNotification={(text, type) => setNotification({ text, type })}
+            isLoading={isLoadingDocuments}
           />
         )}
 
@@ -322,6 +334,14 @@ export default function Home() {
                     documentTitle={activeDocData?.filename || documents.find(d => d.id === activeDocId)?.filename || 'Contract'}
                     onSelectCitation={handleSelectCitation}
                   />
+                ) : isLoadingDocuments ? (
+                  <div className="h-full flex flex-col items-center justify-center p-8 bg-white border border-slate-200 rounded-xl text-center space-y-3">
+                    <div className="w-8 h-8 rounded-full border-2 border-slate-300 border-t-slate-800 animate-spin" />
+                    <div>
+                      <h4 className="text-xs font-semibold text-slate-800">Connecting to Contract Repository</h4>
+                      <p className="text-[11px] text-slate-400 mt-0.5">Fetching indexed contracts and verifying clauses...</p>
+                    </div>
+                  </div>
                 ) : (
                   <div className="h-full flex items-center justify-center p-8 bg-white border border-slate-200 rounded-xl text-center text-xs text-slate-500">
                     Please select a ready contract from the dropdown to start chatting.
@@ -337,6 +357,7 @@ export default function Home() {
           <MultiDocumentChat
             documents={documents}
             onOpenDocWithQuote={handleOpenDocWithQuote}
+            isLoading={isLoadingDocuments}
           />
         )}
 
@@ -346,6 +367,7 @@ export default function Home() {
             documents={documents}
             preselectedDocA={compareDocA}
             preselectedDocB={compareDocB}
+            isLoading={isLoadingDocuments}
           />
         )}
       </main>

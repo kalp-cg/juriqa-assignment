@@ -39,6 +39,7 @@ interface DocumentLibraryProps {
   onRefresh: () => void;
   onCompareWith: (docAId: string, docBId?: string) => void;
   onShowNotification?: (text: string, type: 'success' | 'error') => void;
+  isLoading?: boolean;
 }
 
 export const DocumentLibrary: React.FC<DocumentLibraryProps> = ({
@@ -48,6 +49,7 @@ export const DocumentLibrary: React.FC<DocumentLibraryProps> = ({
   onRefresh,
   onCompareWith,
   onShowNotification,
+  isLoading = false,
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string>('');
@@ -373,7 +375,38 @@ export const DocumentLibrary: React.FC<DocumentLibraryProps> = ({
           )}
         </div>
 
-        {filteredDocuments.length === 0 ? (
+        {isLoading ? (
+          <div className="divide-y divide-slate-100">
+            {/* Loading Header indicator */}
+            <div className="p-3 bg-slate-50/70 flex items-center justify-between text-xs text-slate-600 px-4 sm:px-6">
+              <div className="flex items-center space-x-2">
+                <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-700" />
+                <span className="font-medium text-slate-800">Connecting to Legal Contract Repository...</span>
+              </div>
+              <span className="text-[11px] text-slate-400 font-mono hidden sm:inline">Indexing agreements & clauses</span>
+            </div>
+
+            {/* Skeleton rows with pulsing shimmer */}
+            {[1, 2, 3, 4].map(idx => (
+              <div key={idx} className="p-4 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-pulse">
+                <div className="flex items-start space-x-3 flex-1 min-w-0">
+                  <div className="w-10 h-10 rounded-lg bg-slate-200/80 shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <div className="h-4 bg-slate-200 rounded w-1/3" />
+                      <div className="h-4 bg-slate-100 rounded w-16" />
+                    </div>
+                    <div className="h-3 bg-slate-100 rounded w-1/2" />
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2 shrink-0">
+                  <div className="h-8 bg-slate-100 rounded-lg w-24" />
+                  <div className="h-8 bg-slate-100 rounded-lg w-8" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredDocuments.length === 0 ? (
           <div className="text-center py-12 px-4">
             <FileCode className="w-10 h-10 text-slate-300 mx-auto mb-3" />
             <h3 className="text-sm font-medium text-slate-900">
