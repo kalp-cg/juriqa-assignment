@@ -444,7 +444,8 @@ export async function runAgenticDocumentResearch(
   signal?: AbortSignal,
   customApiKey?: string,
   customBaseUrl?: string,
-  customModel?: string
+  customModel?: string,
+  customBackupApiKey?: string
 ): Promise<{ answer: string; quotes: VerifiedQuote[]; steps: AgentStep[]; coverage: DocumentCoverage }> {
   // Parse document structured data
   const parsedDocs = documents.map(d => {
@@ -632,20 +633,41 @@ export async function runAgenticDocumentResearch(
     };
   };
 
-  // --- API Configuration (Custom, Gemini, Ollama, or Environment) ---
-  const apiKey =
-    customApiKey ||
-    process.env.GEMINI_API_KEY ||
-    process.env.OPENAI_API_KEY ||
-    process.env.OPENROUTER_API_KEY ||
-    process.env.ANTHROPIC_API_KEY ||
-    process.env.GROQ_API_KEY ||
-    (process.env.AI_BASE_URL?.includes('11434') || customBaseUrl?.includes('11434') ? 'ollama' : undefined);
+  // --- High-Availability Key Failover Pool ---
+  const keyPool: string[] = [];
+  if (customApiKey?.trim()) keyPool.push(customApiKey.trim());
+  if (customBackupApiKey?.trim() && !keyPool.includes(customBackupApiKey.trim())) {
+    keyPool.push(customBackupApiKey.trim());
+  }
+
+  const rawEnvKeys = [
+    process.env.GEMINI_API_KEY,
+    process.env.GEMINI_API_KEY_BACKUP,
+    process.env.GEMINI_API_KEY_SECONDARY,
+    process.env.BACKUP_AI_KEY,
+    process.env.OPENAI_API_KEY,
+    process.env.OPENROUTER_API_KEY,
+    process.env.ANTHROPIC_API_KEY,
+    process.env.GROQ_API_KEY,
+  ].filter(Boolean) as string[];
+
+  for (const envKey of rawEnvKeys) {
+    for (const sub of envKey.split(',')) {
+      const trimmed = sub.trim();
+      if (trimmed && !keyPool.includes(trimmed)) {
+        keyPool.push(trimmed);
+      }
+    }
+  }
+
+  const isLocalOllama = !!(process.env.AI_BASE_URL?.includes('11434') || customBaseUrl?.includes('11434'));
+  let currentKeyIndex = 0;
+  let activeApiKey = keyPool[0] || (isLocalOllama ? 'ollama' : undefined);
 
   let defaultBaseUrl = 'https://api.openai.com/v1';
   let defaultModel = 'gpt-4o-mini';
 
-  if (process.env.GEMINI_API_KEY || (apiKey && (apiKey.startsWith('AQ.') || apiKey.startsWith('AIza')))) {
+  if (activeApiKey && (activeApiKey.startsWith('AQ.') || activeApiKey.startsWith('AIza') || process.env.GEMINI_API_KEY)) {
     defaultBaseUrl = 'https://generativelanguage.googleapis.com/v1beta/openai';
     defaultModel = 'gemini-3.5-flash-lite';
   } else if (process.env.OPENROUTER_API_KEY) {
@@ -654,7 +676,7 @@ export async function runAgenticDocumentResearch(
   } else if (process.env.GROQ_API_KEY) {
     defaultBaseUrl = 'https://api.groq.com/openai/v1';
     defaultModel = 'llama-3.1-8b-instant';
-  } else if (process.env.AI_BASE_URL?.includes('11434') || customBaseUrl?.includes('11434')) {
+  } else if (isLocalOllama) {
     defaultBaseUrl = 'http://localhost:11434/v1';
     defaultModel = 'qwen2.5:1.5b';
   }
@@ -664,8 +686,64 @@ export async function runAgenticDocumentResearch(
 
   let fullAnswer = '';
 
+  // Helper to execute AI completions with seamless automatic key failover on rate limits / quota exhaustion
+  const executeAiFetchWithFailover = async (requestPayload: any): Promise<{ ok: boolean; data?: any; errorText?: string }> => {
+    while (currentKeyIndex < Math.max(1, keyPool.length)) {
+      const key = keyPool[currentKeyIndex] || activeApiKey || 'ollama';
+      try {
+        const response = await fetch(`${baseUrl}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${key}`,
+          },
+          body: JSON.stringify(requestPayload),
+          signal,
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          return { ok: true, data };
+        }
+
+        const errText = await response.text();
+        const isQuotaOrRateLimit =
+          response.status === 429 ||
+          response.status === 403 ||
+          response.status === 401 ||
+          errText.includes('RESOURCE_EXHAUSTED') ||
+          errText.includes('quota') ||
+          errText.includes('rate_limit') ||
+          errText.includes('rate limit');
+
+        if (isQuotaOrRateLimit && currentKeyIndex + 1 < keyPool.length) {
+          currentKeyIndex++;
+          activeApiKey = keyPool[currentKeyIndex];
+          console.warn(
+            `[Veritas Key Failover] Key ${currentKeyIndex}/${keyPool.length} exhausted (HTTP ${response.status}). Automatically switching to alternate backup key: ${activeApiKey.substring(0, 8)}...`
+          );
+          continue; // Seamless retry with backup key!
+        }
+
+        return { ok: false, errorText: `AI API error (${response.status}): ${errText}` };
+      } catch (err: any) {
+        if (signal?.aborted) throw err;
+        if (currentKeyIndex + 1 < keyPool.length) {
+          currentKeyIndex++;
+          activeApiKey = keyPool[currentKeyIndex];
+          console.warn(
+            `[Veritas Key Failover] Request failed on key ${currentKeyIndex}. Switching to alternate backup key: ${activeApiKey.substring(0, 8)}...`
+          );
+          continue;
+        }
+        return { ok: false, errorText: err.message };
+      }
+    }
+    return { ok: false, errorText: 'All API keys exhausted.' };
+  };
+
   // If external AI key is available, execute multi-round agent tool loop
-  if (apiKey) {
+  if (activeApiKey) {
     try {
       const tools = [
         {
@@ -764,22 +842,12 @@ ${parsedDocs.map(d => `- [${d.filename}] (Pages: ${d.totalPages}, Clauses: ${d.c
           requestPayload.tool_choice = 'auto';
         }
 
-        const response = await fetch(`${baseUrl}/chat/completions`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify(requestPayload),
-          signal,
-        });
-
-        if (!response.ok) {
-          const errText = await response.text();
-          throw new Error(`AI API error (${response.status}): ${errText}`);
+        const aiRes = await executeAiFetchWithFailover(requestPayload);
+        if (!aiRes.ok || !aiRes.data) {
+          throw new Error(aiRes.errorText || 'Failed to complete AI request.');
         }
 
-        const data = await response.json();
+        const data = aiRes.data;
         const choice = data.choices?.[0];
         const message = choice?.message;
         if (!message) break;
@@ -866,21 +934,13 @@ ${parsedDocs.map(d => `- [${d.filename}] (Pages: ${d.totalPages}, Clauses: ${d.c
           content: 'Now, synthesize your final comprehensive comparative answer across ALL selected documents using the information gathered above. Output verbatim quotes for each document.',
         });
 
-        const finalResponse = await fetch(`${baseUrl}/chat/completions`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model: modelName,
-            messages: conversationMessages,
-          }),
-          signal,
+        const finalAiRes = await executeAiFetchWithFailover({
+          model: modelName,
+          messages: conversationMessages,
         });
 
-        if (finalResponse.ok) {
-          const finalData = await finalResponse.json();
+        if (finalAiRes.ok && finalAiRes.data) {
+          const finalData = finalAiRes.data;
           const finalMsg = finalData.choices?.[0]?.message;
           if (finalMsg?.content) {
             fullAnswer = finalMsg.content;

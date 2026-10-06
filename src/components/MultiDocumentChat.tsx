@@ -105,6 +105,7 @@ export const MultiDocumentChat: React.FC<MultiDocumentChatProps> = ({
 
     try {
       const customKey = typeof window !== 'undefined' ? localStorage.getItem('veritas_ai_key') : null;
+      const customBackupKey = typeof window !== 'undefined' ? localStorage.getItem('veritas_ai_backup_key') : null;
       const customBase = typeof window !== 'undefined' ? localStorage.getItem('veritas_ai_base_url') : null;
       const customModel = typeof window !== 'undefined' ? localStorage.getItem('veritas_ai_model') : null;
 
@@ -116,6 +117,7 @@ export const MultiDocumentChat: React.FC<MultiDocumentChatProps> = ({
           documentIds: selectedDocIds,
           message: `Compare across the selected contracts: ${question.trim()}`,
           apiKey: customKey || undefined,
+          backupApiKey: customBackupKey || undefined,
           baseUrl: customBase || undefined,
           model: customModel || undefined,
         }),

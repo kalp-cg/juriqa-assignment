@@ -9,7 +9,7 @@ export const maxDuration = 60;
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { chatId, documentIds, message: userMessage, apiKey, baseUrl, model } = body;
+    const { chatId, documentIds, message: userMessage, apiKey, backupApiKey, baseUrl, model } = body;
 
     if (!userMessage || !chatId || !documentIds || documentIds.length === 0) {
       return new Response(JSON.stringify({ error: 'Missing required parameters (chatId, documentIds, message)' }), {
@@ -83,7 +83,8 @@ export async function POST(req: NextRequest) {
             req.signal,
             apiKey,
             baseUrl,
-            model
+            model,
+            backupApiKey
           );
 
           // Save completed assistant message to DB

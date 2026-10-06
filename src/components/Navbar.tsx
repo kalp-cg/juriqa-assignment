@@ -21,6 +21,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [showSettings, setShowSettings] = useState(false);
   const [showArchitecture, setShowArchitecture] = useState(false);
   const [apiKey, setApiKey] = useState('');
+  const [backupApiKey, setBackupApiKey] = useState('');
   const [baseUrl, setBaseUrl] = useState('');
   const [model, setModel] = useState('');
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -30,6 +31,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setApiKey(localStorage.getItem('veritas_ai_key') || '');
+      setBackupApiKey(localStorage.getItem('veritas_ai_backup_key') || '');
       setBaseUrl(localStorage.getItem('veritas_ai_base_url') || '');
       setModel(localStorage.getItem('veritas_ai_model') || '');
     }
@@ -86,6 +88,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const handleSaveSettings = () => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('veritas_ai_key', apiKey.trim());
+      localStorage.setItem('veritas_ai_backup_key', backupApiKey.trim());
       localStorage.setItem('veritas_ai_base_url', baseUrl.trim());
       localStorage.setItem('veritas_ai_model', model.trim());
       setSavedSuccess(true);
@@ -99,9 +102,11 @@ export const Navbar: React.FC<NavbarProps> = ({
   const handleClearSettings = () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('veritas_ai_key');
+      localStorage.removeItem('veritas_ai_backup_key');
       localStorage.removeItem('veritas_ai_base_url');
       localStorage.removeItem('veritas_ai_model');
       setApiKey('');
+      setBackupApiKey('');
       setBaseUrl('');
       setModel('');
       setSavedSuccess(true);
@@ -322,15 +327,36 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="space-y-3 text-xs">
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  API Key (OpenAI / OpenRouter / Gemini / Groq)
+                  Primary API Key (OpenAI / OpenRouter / Gemini / Groq)
                 </label>
                 <input
                   type="password"
-                  placeholder="sk-... or leave empty for Built-in Agent"
+                  placeholder="AQ.Ab8... or sk-... (leave empty for Built-in Agent)"
                   value={apiKey}
                   onChange={e => setApiKey(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded p-2 text-slate-900 font-mono text-xs focus:bg-white focus:outline-hidden focus:border-slate-400"
                 />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-semibold text-slate-700">
+                    Alternate / Backup API Key (Auto-Failover)
+                  </label>
+                  <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded font-medium">
+                    Rate Limit Guard
+                  </span>
+                </div>
+                <input
+                  type="password"
+                  placeholder="AQ.Ab8... (switches automatically if primary hits quota / 429)"
+                  value={backupApiKey}
+                  onChange={e => setBackupApiKey(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded p-2 text-slate-900 font-mono text-xs focus:bg-white focus:outline-hidden focus:border-slate-400"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  If the primary key hits a rate limit or runs out of credits, Veritas switches immediately to this backup key.
+                </p>
               </div>
 
               <div>
